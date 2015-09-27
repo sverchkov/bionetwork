@@ -4,6 +4,50 @@
 # Initial creation: August 10, 2015
 # Yuriy Sverchkov
 
+# Data structure holding relevant probabilities
+# Might be used later.
+#setClass("LogProbabilities", representation(
+#  n.actors = "numeric", n.reporters = "numeric",
+#  single.gt.wt = "numeric", double.gt.single = "numeric", double.eq.single = "numeric") )
+
+# Constructs log-probability data structure or updates it.
+# Semantics: for adding a single v. WT table use the KO gene for contrast.1
+# For adding a double v. single table use the single KO gene for contrast.2 and the other for contrast.1
+# Prior is the prior given to ebayes
+logProbabilities <- function( lods, gt, prior, contrast.1, contrast.2 = "WT", logProbs = NULL ) {
+  
+  if( is.null(logProbs) ) logProbs$reporters = rownames( lods );
+  
+  index.1 =
+    if( contrast.1 %in% logProbs$actors )
+      match(contrast.1, logProbs$actors)
+    else{
+      logProbs$actors = c( logProbs$actors, contrast.1 )
+      length(logProbs$actors)
+    }
+  
+  if( contrast.2 == "WT" ){# The single-KO tables
+    logProbs$single.gt.wt[index.1] = lprob.from.lods(lods) # TODO: add matching for differing reporter lists?
+    logProbs$single.gt.wt[index.1][!gt] = -Inf
+    logProbs$single.ngt.wt[index.1] = log1mexp( logProbs$single.ngt.wt )
+  }else{# The double-KO tables
+    index.2 =
+      if( contrast.2 %in% logProbs$actors )
+        match( contrast.2, logProbs$actors )
+      else{
+        logProbs$actors = c( logProbs$actors, contrast.2 )
+        length(logProbs$actors)
+      }
+    
+    lprobs = lprob.from.lods(lods)
+    logProbs$double.eq.single[index.1][index.2] = log1mexp( lprobs )
+    logProbs$double.gt.single[index.1][index.2] = lprobs
+    logProbs$double.gt.single[index.1][index.2][~gt] = -Inf
+  }
+
+  logProbs
+}
+
 # Multiple start (by default greedy) search:
 multiStartNetworkSearch <- function(
   lprobs,
