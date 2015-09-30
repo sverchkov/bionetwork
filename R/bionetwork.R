@@ -16,7 +16,9 @@
 # Prior is the prior given to ebayes
 logProbabilities <- function( lods, gt, prior, contrast.1, contrast.2 = "WT", logProbs = NULL ) {
   
-  if( is.null(logProbs) ) logProbs$reporters = rownames( lods );
+  if( is.null(logProbs) ){
+    logProbs$reporters = rownames( lods );
+  }
   
   index.1 =
     if( contrast.1 %in% logProbs$actors )
@@ -27,6 +29,9 @@ logProbabilities <- function( lods, gt, prior, contrast.1, contrast.2 = "WT", lo
     }
   
   if( contrast.2 == "WT" ){# The single-KO tables
+    
+    lods = update.log.odds( lods, logProbs$single.gt.wt[index.1] - logProbs$single.ngt.wt[index.1], log(prior/(1-prior))
+    
     logProbs$single.gt.wt[index.1] = lprob.from.lods(lods) # TODO: add matching for differing reporter lists?
     logProbs$single.gt.wt[index.1][!gt] = -Inf
     logProbs$single.ngt.wt[index.1] = log1mexp( logProbs$single.ngt.wt )
@@ -39,6 +44,9 @@ logProbabilities <- function( lods, gt, prior, contrast.1, contrast.2 = "WT", lo
         length(logProbs$actors)
       }
     
+    lprobs = logProbs$double.eq.single[index.1][index.2]
+    lods = update.log.odds( lods, log1mexp( lprobs ) - lprobs, log(prior/(1-prior)));
+    
     lprobs = lprob.from.lods(lods)
     logProbs$double.eq.single[index.1][index.2] = log1mexp( lprobs )
     logProbs$double.gt.single[index.1][index.2] = lprobs
@@ -47,6 +55,16 @@ logProbabilities <- function( lods, gt, prior, contrast.1, contrast.2 = "WT", lo
 
   logProbs
 }
+
+# Function for updating lods based on preexisting lods (log-prior-odds)
+update.log.odds = function( log.odds.1, log.odds.2, log.prior.odds ){
+  log.odds.1[is.na(log.odds.1)] = 0
+  log.odds.2[is.na(log.odds.2)] = 0
+  log.odds.1 + log.odds.2 - prior.odds
+}
+
+# Function for cleaning up log probs structure
+
 
 # Multiple start (by default greedy) search:
 multiStartNetworkSearch <- function(
