@@ -30,7 +30,7 @@ logProbabilities <- function( lods, gt, prior, contrast.1, contrast.2 = "WT", lo
   
   if( contrast.2 == "WT" ){# The single-KO tables
     
-    lods = update.log.odds( lods, logProbs$single.gt.wt[index.1] - logProbs$single.ngt.wt[index.1], log(prior/(1-prior))
+    lods = update.log.odds( lods, logProbs$single.gt.wt[index.1] - logProbs$single.ngt.wt[index.1], log(prior/(1-prior)))
     
     logProbs$single.gt.wt[index.1] = lprob.from.lods(lods) # TODO: add matching for differing reporter lists?
     logProbs$single.gt.wt[index.1][!gt] = -Inf
@@ -351,10 +351,17 @@ signs.match = function( a, b ){ sign(a)==sign(b) }
 # Compute log(1-exp(x)) accurately.
 # Based on "Accurately Computing log(1-exp(-|a|))" by Martin Mächler
 log1mexp = function(x){
-  if( x < log(2) )
-    log1p(-exp(x))
-  else
-    log(-expm1(x))
+  if( length(x) > 1 ){
+    result = log(-expm1(x))
+    calculate.differently = is.finite(x) & (x < log(2))
+    result[calculate.differently] = log1p(-exp(x[calculate.differently]))
+    result
+  }else{
+    if( x < log(2) )
+      log1p(-exp(x))
+    else
+      log(-expm1(x))
+  }
 }
 
 # Utility for output
