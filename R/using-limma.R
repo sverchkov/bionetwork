@@ -1,57 +1,74 @@
+# Class definition
+LimmaLogProbs = setClass("LimmaLogProbs",
+                         slots = c(
+                           actors = "character",
+                           reporters = "character",
+                           nActors = "numeric",
+                           nReporters = "numeric",
+                           singleGtWT = "numeric",
+                           doubleVsingle = "list"
+                         ))
+
 # Use limma to get lprobs.
 # Starting point is having a 'fit' (before contrasts).
 # Automatically build contrasts and run the right models.
-log.probs = function( fit, single.genes, double.specs, wt.str = "WT" ){
+llp = function( fit, actors, doubleSpecs, wt = "WT" ){
   # fit is the model fit object from limma obtained with lmFit
   # single.genes is a list of strings identifying the single genes
   # double.specs is a list where each element has a list with a first element identifying the name of a double KO,
   #             and the second being a pair of the corresponding single KOs. E.g. "hog1msn2", ["hog1", "msn2"]
   
-  log.probs = NULL;
-  log.probs$actors = single.genes;
-  log.probs$n.actors = length( single.genes );
-  log.probs$reporters = names(fit$Amean);
-  log.probs$n.reporters = length( log.probs$reporters );
+  nActors = length( actors );
+  reporters = names(fit$Amean);
+  nReporters = length( reporters );
+  theColnames = colnames(fit$coefficients);
   
   # We make one contrast for each singke KO and two contrasts for each double KO.
-  contrast.matrix = mk.contrast.matrix( single.genes, double.specs, wt.str, the.colnames )
+  contrastMatrix = mkContrastMatrix( actors, doubleSpecs, wt, theColnames )
   
-  direction.mismatch =
-    sign( fit$coefficients[,wt.str] ) != sign( fit$coefficients[,single.genes] )
+  directionMismatch =
+    sign( fit$coefficients[,wt] ) != sign( fit$coefficients[,actors] )
     
-  fit.for.contrasts = eBayes( contrasts.fit(fit,contrast.matrix) );
+  fit4contrasts = eBayes( contrasts.fit(fit,contrastMatrix) );
   
   # Extract log-probs from fit.
-  log.probs$single.gt.wt = lprob.from.lods( fit.for.contrasts$lods[,1:log.probs$n.actors] )
-  log.probs$single.gt.wt[direction.mismatch] = -Inf
+  singleGtWT = lprob.from.lods( fit4contrasts$lods[,1:nActors] )
+  singleGtWT[directionMismatch] = -Inf
   
-  log.probs$double.vs.single = NULL
+  doubleVsingle = NULL
 
-  i = log.probs$n.actors
-  for( element in double.specs ){
+  i = nActors
+  for( element in doubleSpecs ){
     gene = element[[2]]
     for( j in 1:2 ){
       i = i+1
       
-      lprobs = lprob.from.lods( fit.for.contrasts$lods[,i] )
+      lprobs = lprob.from.lods( fit4contrasts$lods[,i] )
       
-      direction.mismatch =
+      directionMismatch =
         sign( fit$coefficients[,gene[j]] ) !=
-        sign( fit.for.contrasts$coefficients[,i] )
+        sign( fit4contrasts$coefficients[,i] )
       
       item=NULL
       item$eq = log1mexp( lprobs )
       item$gt = lprobs
-      item$gt[direction.mismatch] = -Inf
-      log.probs$double.vs.single[[gene[j]]][[gene[3-j]]] = item
+      item$gt[directionMismatch] = -Inf
+      log.probs$doubleVsingle[[gene[j]]][[gene[3-j]]] = item
     }
   }
   
   # Return.
-  log.probs
+  LimmaLogProbs(
+    actors = actors,
+    nActors = nActors,
+    reporters = reporters,
+    nReporters = nReporters,
+    singleGtWT = singleGtWT,
+    doubleVsingle = doubleVsingle
+  )
 }
 
-mk.contrast.matrix = function( single.genes, double.specs, wt.str, the.colnames ){
+mkContrastMatrix = function( single.genes, double.specs, wt.str, the.colnames ){
   
   n.1le = length(single.genes)
   n.2le = length(double.specs)

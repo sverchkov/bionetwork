@@ -4,7 +4,22 @@
 # Initial creation: August 10, 2015
 # Yuriy Sverchkov
 
-# Data structure holding relevant probabilities
+# Interface used by the network learner.
+# I'm guessing in R the interface is just generics.
+setGeneric(name = "scoreIndependentPathways",
+           def = function(theObject, actor1, actor2)
+             { standardGeneric("scoreIndependentPathways") } )
+setGeneric(name = "scoreSharedPathways",
+           def = function(theObject, actor1, actor2)
+             { standardGeneric("scoreSharedPathways") } )
+setGeneric(name = "ancestryScoreMatrix",
+           def = function(theObject)
+             { standardGeneric("ancestryScoreMatrix") } )
+
+# The class LimmaLogProbs is defined in the "using-limma.R" source file.
+# Here we associate the generics with it.
+#setMethod(f = "scoreIndependentPathways")
+
 # Might be used later.
 #setClass("LogProbabilities", representation(
 #  n.actors = "numeric", n.reporters = "numeric",
