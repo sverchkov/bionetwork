@@ -5,14 +5,15 @@ LimmaLogProbs = setClass("LimmaLogProbs",
                            reporters = "character",
                            nActors = "numeric",
                            nReporters = "numeric",
-                           singleGtWT = "numeric",
+                           prior = "numeric",
+                           singleGtWT = "matrix",
                            doubleVsingle = "list"
                          ))
 
 # Use limma to get lprobs.
 # Starting point is having a 'fit' (before contrasts).
 # Automatically build contrasts and run the right models.
-llp = function( fit, actors, doubleSpecs, wt = "WT" ){
+makeLimmaLogProbs = function( fit, actors, doubleSpecs, wt = "WT", prior = 0.01 ){
   # fit is the model fit object from limma obtained with lmFit
   # single.genes is a list of strings identifying the single genes
   # double.specs is a list where each element has a list with a first element identifying the name of a double KO,
@@ -29,7 +30,7 @@ llp = function( fit, actors, doubleSpecs, wt = "WT" ){
   directionMismatch =
     sign( fit$coefficients[,wt] ) != sign( fit$coefficients[,actors] )
     
-  fit4contrasts = eBayes( contrasts.fit(fit,contrastMatrix) );
+  fit4contrasts = eBayes( contrasts.fit(fit,contrastMatrix), proportion = prior );
   
   # Extract log-probs from fit.
   singleGtWT = lprob.from.lods( fit4contrasts$lods[,1:nActors] )
@@ -53,7 +54,7 @@ llp = function( fit, actors, doubleSpecs, wt = "WT" ){
       item$eq = log1mexp( lprobs )
       item$gt = lprobs
       item$gt[directionMismatch] = -Inf
-      log.probs$doubleVsingle[[gene[j]]][[gene[3-j]]] = item
+      doubleVsingle[[gene[j]]][[gene[3-j]]] = item
     }
   }
   
@@ -63,6 +64,7 @@ llp = function( fit, actors, doubleSpecs, wt = "WT" ){
     nActors = nActors,
     reporters = reporters,
     nReporters = nReporters,
+    prior = prior,
     singleGtWT = singleGtWT,
     doubleVsingle = doubleVsingle
   )
@@ -94,37 +96,46 @@ mkContrastMatrix = function( single.genes, double.specs, wt.str, the.colnames ){
   contrast.matrix
 }
 
-merge.log.probs = function( lp1, lp2, prior = 0.01 ){
-  result = NULL
+setMethod("+", signature(e1 = "LimmaLogProbs", e2 = "LimmaLogProbs"), function (e1,e2){
   
-  if( any( lp1$reporters != lp2$reporters) ) stop("Mismatching reporter lists not yet supported")
+  if( any( e1@reporters != e2@reporters) ) stop("Mismatching reporter lists not yet supported")
+  if( e1@prior != e2@prior ) stop("Mismatched priors when merging limma log-prob objects")
   
-  result$reporters = lp1$reporters
-  result$n.reporters = lp1$n.reporters
+  reporters = e1@reporters
+  nReporters = e1@nReporters
+  prior = e1@prior
   
-  actors.intersection = intersect( lp1$actors, lp2$actors )
-  actors.only.1 = setdiff( lp1$actors, actors.intersection )
-  actors.only.2 = setdiff( lp2$actors, actors.intersection )
+  actors.intersection = intersect( e1@actors, e2@actors )
+  actors.only.1 = setdiff( e1@actors, actors.intersection )
+  actors.only.2 = setdiff( e2@actors, actors.intersection )
 
-  result$actors = c( actors.only.1, actors.only.2, actors.intersection )
+  actors = c( actors.only.1, actors.only.2, actors.intersection )
 
-  result$n.actors = length( result$actors )
+  nActors = length( actors )
   
-  result$single.gt.wt = cbind( lp1$single.gt.wt[,which(lp1$actors %in% actors.only.1)],
-                               lp2$single.gt.wt[,which(lp2$actors %in% actors.only.2)],
-                               lp1$single.gt.wt[,which(lp1$actors %in% actors.intersection)] +
-                                 lp2$single.gt.wt[,which(lp2$actors %in% actors.intersection)] -
+  singleGtWT = cbind( e1@singleGtWT[,which(e1@actors %in% actors.only.1)],
+                               e2@singleGtWT[,which(e2@actors %in% actors.only.2)],
+                               e1@singleGtWT[,which(e1@actors %in% actors.intersection)] +
+                                 e2@singleGtWT[,which(e2@actors %in% actors.intersection)] -
                                  log(prior/(1-prior)))
 
-  result$double.vs.single = lp1$double.vs.single
+  doubleVsingle = e1@doubleVsingle
   
-  for( gene1 in names(lp2$double.vs.single) )
-    for( gene2 in names(lp2$double.vs.single[[gene1]])){
-      if( is.null( result$double.vs.single[[gene1]][[gene2]] ))
-        result$double.vs.single[[gene1]][[gene2]] = lp2$double.vs.single[[gene1]][[gene2]]
+  for( gene1 in names(e2@doubleVsingle) )
+    for( gene2 in names(e2@doubleVsingle[[gene1]])){
+      if( is.null( doubleVsingle[[gene1]][[gene2]] ))
+        doubleVsingle[[gene1]][[gene2]] = e2@doubleVsingle[[gene1]][[gene2]]
       else
-        result$double.vs.single[[gene1]][[gene2]] = lp2$double.vs.single[[gene1]][[gene2]] + result$double.vs.single[[gene1]][[gene2]] - log(prior/(1-prior))
+        doubleVsingle[[gene1]][[gene2]] = e2@doubleVsingle[[gene1]][[gene2]] + doubleVsingle[[gene1]][[gene2]] - log(prior/(1-prior))
     }
   
-  result
-}
+  LimmaLogProbs(
+    actors = actors,
+    reporters = reporters,
+    prior = prior,
+    nActors = nActors,
+    nReporters = nReporters,
+    singleGtWT = singleGtWT,
+    doubleVsingle = doubleVsingle
+  )
+})
