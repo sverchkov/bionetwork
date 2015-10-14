@@ -13,7 +13,19 @@ LimmaLogProbs = setClass("LimmaLogProbs",
 # Use limma to get lprobs.
 # Starting point is having a 'fit' (before contrasts).
 # Automatically build contrasts and run the right models.
-makeLimmaLogProbs = function( fit, actors, doubleSpecs, wt = "WT", prior = 0.01 ){
+makeLimmaLogProbs = function(
+  fit,
+  actors,
+  theColnames = colnames(fit$coefficients),
+  doubleSpecs = {
+    ds = NULL
+    for( gene1 in actors )
+      for( gene2 in actors )
+        if( (str = paste0(gene1,gene2)) %in% theColnames )
+          ds = append( ds, list( list(str, c(gene1,gene2)) ) )
+    ds
+  },
+  wt = "WT", prior = 0.01 ){
   # fit is the model fit object from limma obtained with lmFit
   # single.genes is a list of strings identifying the single genes
   # double.specs is a list where each element has a list with a first element identifying the name of a double KO,
@@ -22,8 +34,7 @@ makeLimmaLogProbs = function( fit, actors, doubleSpecs, wt = "WT", prior = 0.01 
   nActors = length( actors );
   reporters = names(fit$Amean);
   nReporters = length( reporters );
-  theColnames = colnames(fit$coefficients);
-  
+
   # We make one contrast for each singke KO and two contrasts for each double KO.
   contrastMatrix = mkContrastMatrix( actors, doubleSpecs, wt, theColnames )
   

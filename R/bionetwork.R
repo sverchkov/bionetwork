@@ -15,86 +15,89 @@ setGeneric(name = "scoreSharedPathways",
 setGeneric(name = "ancestryScoreMatrix",
            def = function(theObject)
              { standardGeneric("ancestryScoreMatrix") } )
+setGeneric(name = "getActors",
+           def = function(theObject)
+             { standardGeneric("getActors") } )
+setGeneric(name = "howManyActors",
+           def = function(theObject)
+           { standardGeneric("howManyActors") } )
+setGeneric(name = "howManyReporters",
+           def = function(theObject)
+             { standardGeneric("howManyReporters") } )
 
 # The class LimmaLogProbs is defined in the "using-limma.R" source file.
 # Here we associate the generics with it.
-#setMethod(f = "scoreIndependentPathways")
+setMethod(f = "scoreIndependentPathways",
+          signature(theObject = "LimmaLogProbs", actor1 = "character", actor2 = "character"),
+          definition = function(theObject, actor1, actor2){
+            result = 0
+            if( actor1 %in% names(theObject@doubleVsingle) )
+              if( actor2 %in% names( theObject@doubleVsingle[[actor1]] ) )
+                result = result + theObject@doubleVsingle[[actor1]][[actor2]][["gt"]]
+            if( actor2 %in% names(theObject@doubleVsingle) )
+              if( actor1 %in% names( theObject@doubleVsingle[[actor2]] ) )
+                result = result + theObject@doubleVsingle[[actor2]][[actor1]][["gt"]]
+            return(result)
+          })
 
-# Might be used later.
-#setClass("LogProbabilities", representation(
-#  n.actors = "numeric", n.reporters = "numeric",
-#  single.gt.wt = "numeric", double.gt.single = "numeric", double.eq.single = "numeric") )
+setMethod(f = "scoreIndependentPathways",
+          signature(theObject = "LimmaLogProbs", actor1 = "numeric", actor2 = "numeric"),
+          definition = function(theObject,actor1,actor2){
+            scoreIndependentPathways(theObject, theObject@actors[actor1],theObject@actors[actor2])
+          })
 
-# Constructs log-probability data structure or updates it.
-# Semantics: for adding a single v. WT table use the KO gene for contrast.1
-# For adding a double v. single table use the single KO gene for contrast.2 and the other for contrast.1
-# Prior is the prior given to ebayes
-logProbabilities <- function( lods, gt, prior, contrast.1, contrast.2 = "WT", logProbs = NULL ) {
-  
-  if( is.null(logProbs) ){
-    logProbs$reporters = rownames( lods );
-  }
-  
-  index.1 =
-    if( contrast.1 %in% logProbs$actors )
-      match(contrast.1, logProbs$actors)
-    else{
-      logProbs$actors = c( logProbs$actors, contrast.1 )
-      length(logProbs$actors)
-    }
-  
-  if( contrast.2 == "WT" ){# The single-KO tables
-    
-    lods = update.log.odds( lods, logProbs$single.gt.wt[index.1] - logProbs$single.ngt.wt[index.1], log(prior/(1-prior)))
-    
-    logProbs$single.gt.wt[index.1] = lprob.from.lods(lods) # TODO: add matching for differing reporter lists?
-    logProbs$single.gt.wt[index.1][!gt] = -Inf
-    logProbs$single.ngt.wt[index.1] = log1mexp( logProbs$single.ngt.wt )
-  }else{# The double-KO tables
-    index.2 =
-      if( contrast.2 %in% logProbs$actors )
-        match( contrast.2, logProbs$actors )
-      else{
-        logProbs$actors = c( logProbs$actors, contrast.2 )
-        length(logProbs$actors)
-      }
-    
-    lprobs = logProbs$double.eq.single[index.1][index.2]
-    lods = update.log.odds( lods, log1mexp( lprobs ) - lprobs, log(prior/(1-prior)));
-    
-    lprobs = lprob.from.lods(lods)
-    logProbs$double.eq.single[index.1][index.2] = log1mexp( lprobs )
-    logProbs$double.gt.single[index.1][index.2] = lprobs
-    logProbs$double.gt.single[index.1][index.2][~gt] = -Inf
-  }
+setMethod(f = "scoreSharedPathways",
+          signature(theObject = "LimmaLogProbs", actor1 = "character", actor2 = "character"),
+          definition = function(theObject, actor1, actor2){
+            result = 0
+            if( actor1 %in% names(theObject@doubleVsingle) )
+              if( actor2 %in% names( theObject@doubleVsingle[[actor1]] ) )
+                result = result + theObject@doubleVsingle[[actor1]][[actor2]][["eq"]]
+              if( actor2 %in% names(theObject@doubleVsingle) )
+                if( actor1 %in% names( theObject@doubleVsingle[[actor2]] ) )
+                  result = result + theObject@doubleVsingle[[actor2]][[actor1]][["eq"]]
+                return(result)
+          })
 
-  logProbs
-}
+setMethod(f = "scoreSharedPathways",
+          signature(theObject = "LimmaLogProbs", actor1 = "numeric", actor2 = "numeric"),
+          definition = function(theObject,actor1,actor2){
+            scoreSharedPathways(theObject, theObject@actors[actor1],theObject@actors[actor2])
+          })
 
-# Function for updating lods based on preexisting lods (log-prior-odds)
-update.log.odds = function( log.odds.1, log.odds.2, log.prior.odds ){
-  log.odds.1[is.na(log.odds.1)] = 0
-  log.odds.2[is.na(log.odds.2)] = 0
-  log.odds.1 + log.odds.2 - prior.odds
-}
+setMethod(f = "ancestryScoreMatrix",
+          signature = "LimmaLogProbs",
+          definition = function(theObject) t(theObject@singleGtWT) )
 
-# Function for cleaning up log probs structure
+setMethod(f = "getActors",
+          signature = "LimmaLogProbs",
+          definition = function(theObject) theObject@actors )
+
+setMethod(f= "howManyActors",
+          signature = "LimmaLogProbs",
+          definition = function(theObject) theObject@nActors )
+
+setMethod(f= "howManyReporters",
+          signature = "LimmaLogProbs",
+          definition = function(theObject) theObject@nReporters )
 
 
 # Multiple start (by default greedy) search:
 multiStartNetworkSearch <- function(
-  lprobs,
-  n.actors=nrow(lprobs$single.gt.wt),
-  n.reporters=ncol(lprobs$single.gt.wt),
-  search.function=getMLNetwork)
+  lp,
+  searchFunction=getMLNetwork)
   # See getMLNetwork for parameter definitions
 {
+  # Let n = number of actors
+  actors = getActors(lp)
+  n = howManyActors(lp)
+  nReporters = howManyReporters(lp)
   # We want to do a search starting with each combination of the possible
-  # n.actors^2 - n.actors edges.
+  # n^2 - n edges.
   # Start by getting the list of edges
   edges = which(
-    matrix( TRUE, nrow=n.actors, ncol=n.actors ) &
-    !diag( n.actors ) )
+    matrix( TRUE, nrow=n, ncol=n ) &
+    !diag( n ) )
   
   # Keep track of max score
   max.score = -Inf
@@ -105,15 +108,15 @@ multiStartNetworkSearch <- function(
     # Iterate over combinations
     for( combination in combn(edges, n.edges, simplify = FALSE) ){
       # Make a starting network
-      network = matrix( FALSE, nrow=n.actors, ncol=(n.actors+n.reporters) )
+      network = matrix( FALSE, nrow=n, ncol=(n+nReporters) )
       for( i in combination ) network[i] = TRUE
       
       # Score
-      candidate.score = score.network( network, lprobs )
+      candidate.score = scoreNetwork( network, lp )
       
       if( is.finite( candidate.score ) ){
         ml.result =
-          search.function( lprobs, n.actors, n.reporters, network, candidate.score )
+          searchFunction( lp, n, nReporters, network, candidate.score )
       
         candidate.network = ml.result[[1]]
         candidate.score = ml.result[[2]]
@@ -129,11 +132,11 @@ multiStartNetworkSearch <- function(
 
 # Greedy edge toggle search:
 getMLNetwork <- function(
-  lprobs,
-  n.actors=nrow(lprobs$single.gt.wt),
-  n.reporters=ncol(lprobs$single.gt.wt),
-  network=matrix( FALSE, nrow=n.actors,  ncol=(n.actors+n.reporters)),
-  score=score.network( network, lprobs ) )
+  lp,
+  nActors = length(getActors(lp)),
+  nReporters = howManyReporters(lp),
+  network=matrix( FALSE, nrow=nActors,  ncol=(nActors+nReporters)),
+  score=scoreNetwork( network, lp ) )
   # lods: data structure describing the log-odds comparing various KOs
   # n.actors: the number of things upstream in the network
   # n.reporters: the number of genes affected by the actors
@@ -143,8 +146,10 @@ getMLNetwork <- function(
   # indicates the edge a->b
 {
   repeat{
-    score.change.matrix <- score.edge.toggles( network, lprobs )
+    print(paste0("Score: ",score))
+    score.change.matrix <- scoreEdgeToggles( network, lp )
     max.change <- max(score.change.matrix, na.rm = TRUE)
+    print(paste0("Change: ", max.change))
     if( max.change > 0 ){
       max.index <- which.max(score.change.matrix)
       network[max.index] = !network[max.index]
@@ -165,7 +170,7 @@ getMLNetwork <- function(
 # reporter as actor 1 alone.
 #   lprobs$double.gt.single is as above but probability of the double KO having a
 # greater effect
-score.network <- function( network, lprobs, n.actors=nrow(network), n.reporters=(ncol(network)-nrow(network))){
+scoreNetwork <- function( network, lp ){
   
   # Determine current ancestry.
   # ancestry(A,B) means A is an ancestor of B
@@ -183,106 +188,94 @@ score.network <- function( network, lprobs, n.actors=nrow(network), n.reporters=
   # Ok. now that we have the ancestry...
   
   # Score presence of an actor being an ancestor of a reporter
-  reporter.ancestry <- ancestry[,n.actors+(1:n.reporters)]
+  reporter.ancestry <- ancestry[,howManyActors(lp)+(1:howManyReporters(lp))]
   score <-
-    sum( lprobs$single.gt.wt[reporter.ancestry], na.rm=TRUE ) +
-    sum( lprobs$single.ngt.wt[!reporter.ancestry], na.rm=TRUE )
+    sum( ancestryScoreMatrix(lp)[reporter.ancestry], na.rm=TRUE ) +
+    sum( log1mexp( ancestryScoreMatrix(lp)[!reporter.ancestry] ), na.rm=TRUE )
   
   #   Score two actors sharing a pathway: one is an ancestor of the other and both
   # are ancestors of the reporter.
   #   Score of two actors in independent pathways: both are ancestors of the reporter
   # but neither is an ancestor of the other.
-  for (g1 in 2:n.actors) {
-    for (g2 in 1:(g1-1)) {
-      both = reporter.ancestry[g1,] & reporter.ancestry[g2,]
-      if( ancestry[g1,g2] || ancestry[g2,g1]){
-        score <- score +
-          sum( lprobs$double.eq.single[g1,g2,both], na.rm=TRUE ) +
-          sum( lprobs$double.eq.single[g2,g1,both], na.rm=TRUE )# +
-          #sum( logspace.not(lprobs$double.eq.single[g1,g2,!both]), na.rm=TRUE ) +
-          #sum( logspace.not(lprobs$double.eq.single[g2,g1,!both]), na.rm=TRUE )
-      }else{
-        score <- score +
-          sum( lprobs$double.gt.single[g1,g2,both], na.rm=TRUE ) +
-          sum( lprobs$double.gt.single[g2,g1,both], na.rm=TRUE )# +
-          #sum( logspace.not(lprobs$double.gt.single[g1,g2,!both]), na.rm=TRUE ) +
-          #sum( logspace.not(lprobs$double.gt.single[g2,g1,!both]), na.rm=TRUE )
-      }
+  for (i1 in 2:howManyActors(lp)) {
+    g1 = getActors(lp)[i1]
+    for (i2 in 1:(i1-1)) {
+      g2 = getActors(lp)[i2]
+      
+      both = reporter.ancestry[i1,] & reporter.ancestry[i2,]
+      
+      if( ancestry[i1,i2] || ancestry[i2,i1])
+        score <- score + sum( scoreSharedPathways(lp, g1, g2)[both], na.rm=TRUE )
+      else
+        score <- score + sum( scoreIndependentPathways(lp, g1, g2)[both], na.rm=TRUE )
     }
   }
   
   return(score)
 }
 
-# How to score an edge toggle
-score.edge.toggles.old <- function( network, lprobs, score=score.network(network,lprobs) ){
-  # Naive hackery:
-  # Just score every move the old fashioned way
-  toggle.scores <- matrix(0, nrow=nrow(network), ncol=ncol(network))
-  for( i in 1:length(network) ){
-    new.network <- network
-    new.network[i] <- !network[i]
-    toggle.scores[i] <- score.network(new.network,lprobs) - score
-  }
-  return(toggle.scores)
-}
-
 # Smart edge toggle
-score.edge.toggles = function(
+# laps stands for local ancestry and pathway scores
+scoreEdgeToggles = function(
   network,
-  local.scores,
-  actor.ancestry = inclusive.ancestry(network),
-  n.actors = nrow(network),
-  n.reporters = ncol(network) - n.actors)
+  laps) 
 {
+  # For easy writing
+  n = howManyActors(laps)
+  
   # The result matrix
-  toggle.scores = matrix(nrow=n.actors, ncol=n.actors+n.reporters)
+  toggle.scores =
+    matrix(
+      nrow=n,
+      ncol=n+howManyReporters(laps))
+  
+  actor.ancestry = inclusive.ancestry(network)
   
   # Get original ancestry vectors for reporters
-  original.ancestry.vectors=matrix(nrow=n.actors,ncol=n.reporters)
-  for( r in 1:n.reporters)
+  original.ancestry.vectors=matrix(nrow=n,ncol=howManyReporters(laps))
+  for( r in 1:howManyReporters(laps))
     original.ancestry.vectors[,r] =
-      apply(as.matrix(actor.ancestry[,network[,r+n.actors]]),1,any)
+      apply(as.matrix(actor.ancestry[,network[,r+n]]),1,any)
   
   # Compute toggle scores for actor edges
-  for( a in 1:n.actors )
-    for( b in (1:n.actors)[-a] ){
-      alternate.edges = network[1:n.actors,1:n.actors]
+  for( a in 1:n )
+    for( b in (1:n)[-a] ){
+      alternate.edges = network[1:n,1:n]
       alternate.edges[a,b] = !network[a,b]
       alternate.ancestry = inclusive.ancestry(alternate.edges)
       
       # score.change computation
       score.change = 0;
-      for( r in 1:n.reporters )
+      for( r in 1:howManyReporters(laps) )
         score.change = score.change +
           compute.score.change(
             reporter = r,
             old.ancestry = original.ancestry.vectors[,r],
-            new.ancestry = apply(as.matrix(alternate.ancestry[,network[,r+n.actors]]),1,any),
+            new.ancestry = apply(as.matrix(alternate.ancestry[,network[,r+n]]),1,any),
             old.actor.ancestry = actor.ancestry,
             new.actor.ancestry = alternate.ancestry,
-            local.scores,
-            n.actors)
+            laps,
+            n)
       
       toggle.scores[a,b] = score.change
     }    
   
   # Compute toggle scores for reporter edges
-  for( r in 1:n.reporters )
-    for( a in 1:n.actors ){
-      alternate.parent.vector = network[,r+n.actors]
+  for( r in 1:howManyReporters(laps) )
+    for( a in 1:n ){
+      alternate.parent.vector = network[,r+n]
       alternate.parent.vector[a] = !alternate.parent.vector[a]
       alternate.ancestry.vector =
         apply(as.matrix(actor.ancestry[,alternate.parent.vector]),1,any)
       
-      toggle.scores[a,r+n.actors] = compute.score.change(
+      toggle.scores[a,r+n] = compute.score.change(
         reporter = r,
         old.ancestry = original.ancestry.vectors[,r],
         new.ancestry = alternate.ancestry.vector,
         old.actor.ancestry = actor.ancestry,
         new.actor.ancestry = actor.ancestry,
-        local.scores,
-        n.actors)
+        laps,
+        n)
     }
 
   return(toggle.scores)
@@ -294,44 +287,40 @@ compute.score.change = function(
   new.ancestry,
   old.actor.ancestry,
   new.actor.ancestry,
-  local.scores,
-  n.actors = nrows(actor.ancestry))
+  laps,
+  n = howManyActors(laps))
 {
   score.change = 0
   
   # Single-KO score update
   if( any( new.ancestry != old.ancestry ) )
     score.change = score.change +
-      sum( local.scores$single.gt.wt[new.ancestry,reporter], na.rm=TRUE ) +
-      sum( local.scores$single.ngt.wt[!new.ancestry,reporter], na.rm=TRUE ) -
-      sum( local.scores$single.gt.wt[old.ancestry,reporter], na.rm=TRUE ) -
-      sum( local.scores$single.ngt.wt[!old.ancestry,reporter], na.rm=TRUE )
+      sum( ancestryScoreMatrix( laps )[new.ancestry,reporter], na.rm=TRUE ) +
+      sum( log1mexp(ancestryScoreMatrix( laps )[!new.ancestry,reporter]), na.rm=TRUE ) -
+      sum( ancestryScoreMatrix( laps )[old.ancestry,reporter], na.rm=TRUE ) -
+      sum( log1mexp(ancestryScoreMatrix( laps )[!old.ancestry,reporter]), na.rm=TRUE )
   
   # Double-KO score update
   if( any(new.ancestry != old.ancestry) ||
       any(new.actor.ancestry != old.actor.ancestry, na.rm = TRUE))
-    for( a in 2:n.actors )
+    for( a in 2:n )
       for( b in 1:(a-1) ){
         
         if( new.ancestry[a] && new.ancestry[b] )
           if( new.actor.ancestry[a,b] || new.actor.ancestry[b,a] )
             score.change = score.change +
-              sum( local.scores$double.eq.single[a,b,reporter], na.rm=TRUE ) +
-              sum( local.scores$double.eq.single[b,a,reporter], na.rm=TRUE )
+              scoreSharedPathways( laps, a, b )[reporter]
           else
             score.change = score.change +
-              sum( local.scores$double.gt.single[a,b,reporter], na.rm=TRUE ) +
-              sum( local.scores$double.gt.single[b,a,reporter], na.rm=TRUE )
+              scoreIndependentPathways( laps, a, b )[reporter]
           
         if( old.ancestry[a] && old.ancestry[b] )
           if( old.actor.ancestry[a,b] || old.actor.ancestry[b,a] )
             score.change = score.change -
-              sum( local.scores$double.eq.single[a,b,reporter], na.rm=TRUE ) -
-              sum( local.scores$double.eq.single[b,a,reporter], na.rm=TRUE )
+              scoreSharedPathways( laps, a, b )[reporter]
           else
             score.change = score.change -
-              sum( local.scores$double.gt.single[a,b,reporter], na.rm=TRUE ) -
-              sum( local.scores$double.gt.single[b,a,reporter], na.rm=TRUE )
+              scoreIndependentPathways( laps, a, b )[reporter]
       }
   
   return(score.change)
@@ -364,7 +353,7 @@ lprob.from.lods = function( lods ){
 signs.match = function( a, b ){ sign(a)==sign(b) }
 
 # Compute log(1-exp(x)) accurately.
-# Based on "Accurately Computing log(1-exp(-|a|))" by Martin Mächler
+# Based on "Accurately Computing log(1-exp(-|a|))" by Martin Mächler
 log1mexp = function(x){
   if( length(x) > 1 ){
     result = log(-expm1(x))
@@ -381,24 +370,34 @@ log1mexp = function(x){
 
 # Utility for output
 # Convert adjacency matrix to cytoscape edge list
-edges.from.matrix = function(
-  adjacency.matrix,
-  node.names =
-    if(!is.null(colnames(adjacency.matrix)))
-      colnames(adjacency.matrix)
+edgesFromMatrix = function(
+  adjacency,
+  nodeNames =
+    if(!is.null(colnames(adjacency)))
+      colnames(adjacency)
     else
-      1:max(dim(adjacency.matrix)) )
+      1:max(dim(adjacency)) )
 {
-  n = sum(adjacency.matrix);
-  edges = data.frame( source=rep("",n), target=rep("",n), stringsAsFactors = FALSE )
-  edge = 1
-  for( i in 1:nrow(adjacency.matrix) )
-    for( j in 1:ncol(adjacency.matrix) )
-      if( adjacency.matrix[i,j]){
-        edges[edge,"source"] = node.names[i];
-        edges[edge,"target"] = node.names[j];
-        edge = edge+1;
-      }
+  indeces = which( adjacency, arr.ind=TRUE )
+  
+  sources = nodeNames[indeces[,1]]
+  targets = nodeNames[indeces[,2]]
+
+  edges = data.frame( source=sources, target=targets, stringsAsFactors = FALSE )
   
   return(edges);
+}
+
+
+# How to score an edge toggle
+score.edge.toggles.old <- function( network, lprobs, score=score.network(network,lprobs) ){
+  # Naive hackery:
+  # Just score every move the old fashioned way
+  toggle.scores <- matrix(0, nrow=nrow(network), ncol=ncol(network))
+  for( i in 1:length(network) ){
+    new.network <- network
+    new.network[i] <- !network[i]
+    toggle.scores[i] <- score.network(new.network,lprobs) - score
+  }
+  return(toggle.scores)
 }
