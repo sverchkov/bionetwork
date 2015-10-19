@@ -383,9 +383,8 @@ edgesFromMatrix = function(
   sources = nodeNames[indeces[,1]]
   targets = nodeNames[indeces[,2]]
 
-  edges = data.frame( source=sources, target=targets, stringsAsFactors = FALSE )
-  
-  return(edges);
+  # return
+  data.frame( source=sources, target=targets, stringsAsFactors = FALSE )
 }
 
 
