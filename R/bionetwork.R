@@ -30,14 +30,17 @@ setGeneric(name = "howManyReporters",
 setMethod(f = "scoreIndependentPathways",
           signature(theObject = "LimmaLogProbs", actor1 = "character", actor2 = "character"),
           definition = function(theObject, actor1, actor2){
-            result = 0
-            if( actor1 %in% names(theObject@doubleVsingle) )
-              if( actor2 %in% names( theObject@doubleVsingle[[actor1]] ) )
-                result = result + theObject@doubleVsingle[[actor1]][[actor2]][["gt"]]
-            if( actor2 %in% names(theObject@doubleVsingle) )
-              if( actor1 %in% names( theObject@doubleVsingle[[actor2]] ) )
-                result = result + theObject@doubleVsingle[[actor2]][[actor1]][["gt"]]
-            return(result)
+            (
+            if( actor1 %in% names(theObject@doubleVsingle) &&
+                actor2 %in% names( theObject@doubleVsingle[[actor1]] ) )
+                theObject@doubleVsingle[[actor1]][[actor2]][["gt"]]
+            else -log(2)
+            ) + (
+            if( actor2 %in% names(theObject@doubleVsingle) &&
+                actor1 %in% names( theObject@doubleVsingle[[actor2]] ) )
+                theObject@doubleVsingle[[actor2]][[actor1]][["gt"]]
+            else -log(2)
+            )
           })
 
 setMethod(f = "scoreIndependentPathways",
@@ -49,14 +52,17 @@ setMethod(f = "scoreIndependentPathways",
 setMethod(f = "scoreSharedPathways",
           signature(theObject = "LimmaLogProbs", actor1 = "character", actor2 = "character"),
           definition = function(theObject, actor1, actor2){
-            result = 0
-            if( actor1 %in% names(theObject@doubleVsingle) )
-              if( actor2 %in% names( theObject@doubleVsingle[[actor1]] ) )
-                result = result + theObject@doubleVsingle[[actor1]][[actor2]][["eq"]]
-              if( actor2 %in% names(theObject@doubleVsingle) )
-                if( actor1 %in% names( theObject@doubleVsingle[[actor2]] ) )
-                  result = result + theObject@doubleVsingle[[actor2]][[actor1]][["eq"]]
-                return(result)
+            (
+            if( actor1 %in% names(theObject@doubleVsingle) &&
+                actor2 %in% names( theObject@doubleVsingle[[actor1]] ) )
+                theObject@doubleVsingle[[actor1]][[actor2]][["eq"]]
+            else -log(2)
+            ) + (
+            if( actor2 %in% names(theObject@doubleVsingle) &&
+                actor1 %in% names( theObject@doubleVsingle[[actor2]] ) )
+                theObject@doubleVsingle[[actor2]][[actor1]][["eq"]]
+            else -log(2)
+            )
           })
 
 setMethod(f = "scoreSharedPathways",
@@ -145,17 +151,30 @@ getMLNetwork <- function(
   # Graph is represented by the directed adjacency matrix where network[a,b] == TRUE
   # indicates the edge a->b
 {
+  print( paste0( nActors, " actors and ", nReporters, " reporters." ))
   repeat{
     print(paste0("Score: ",score))
     score.change.matrix <- scoreEdgeToggles( network, lp )
     max.change <- max(score.change.matrix, na.rm = TRUE)
-    print(paste0("Change: ", max.change))
-    if( max.change > 0 ){
-      max.index <- which.max(score.change.matrix)
-      network[max.index] = !network[max.index]
-      score = score + max.change
-    } else {
+    if ( max.change <= 0 || max.change == Inf ) {
       return(list(network,score,score.change.matrix))
+    } else {
+      while ( max.change > 0 ) {
+        max.index <- which(score.change.matrix == max.change, arr.ind = TRUE)
+        row = sample( 1:(dim(max.index)[1]), 1 )
+        a = max.index[row,1]
+        b = max.index[row,2]
+        print( paste0( "Toggled ", a, ",", b, " yielding change: ", max.change ))
+        network[a,b] = !network[a,b]
+        score = score + max.change
+        if ( b <= nActors ) break
+        # This is a short-circuit to execute all reporter-link changes together
+        # Without recomputing the score change matrix.
+        # Only actor-link changes require recomputation.
+        score.change.matrix[a,b] = -Inf
+        score.change.matrix[1:nActors,1:nActors] = -Inf
+        max.change = max(score.change.matrix, na.rm = TRUE)
+      }
     }
   }
 }
@@ -355,12 +374,13 @@ signs.match = function( a, b ){ sign(a)==sign(b) }
 # Compute log(1-exp(x)) accurately.
 # Based on "Accurately Computing log(1-exp(-|a|))" by Martin Mächler
 log1mexp = function(x){
-  if( length(x) > 1 ){
+  if ( length(x) < 1 ) return( numeric(0) )
+  if ( length(x) > 1 ){
     result = log(-expm1(x))
     calculate.differently = is.finite(x) & (x < log(2))
     result[calculate.differently] = log1p(-exp(x[calculate.differently]))
     result
-  }else{
+  } else {
     if( x < log(2) )
       log1p(-exp(x))
     else
