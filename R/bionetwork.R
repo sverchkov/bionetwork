@@ -118,18 +118,16 @@ multiStartNetworkSearch <- function(
       for( i in combination ) network[i] = TRUE
       
       # Score
-      candidate.score = scoreNetwork( network, lp )
+      #candidate.score = scoreNetwork( network, lp )
       
-      if( is.finite( candidate.score ) ){
-        ml.result =
-          searchFunction( lp, n, nReporters, network, candidate.score )
-      
-        candidate.network = ml.result[[1]]
-        candidate.score = ml.result[[2]]
-        if( candidate.score > max.score ){
-          max.score = candidate.score
-          max.network = candidate.network
-        }
+      ml.result =
+        searchFunction( lp, n, nReporters, network )
+    
+      candidate.network = ml.result[[1]]
+      candidate.score = ml.result[[2]]
+      if( candidate.score > max.score ){
+        max.score = candidate.score
+        max.network = candidate.network
       }
     }
   
@@ -231,6 +229,82 @@ scoreNetwork <- function( network, lp ){
   }
   
   return(score)
+}
+
+# Greedy reporter assignment:
+# Finds the maximum-scoring network with arcs to reporters for a fixed actor network
+getBestReporters = function(
+  laps,
+  nActors = howManyActors(laps),
+  nReporters = howManyReporters(laps),
+  network = matrix( FALSE, nrow=nActors, ncol = (nActors + nReporters) ) ){
+  
+  # We are not going to rely on scoreEdgeToggles for this (theoretically could?)
+  # We are going to ignore the given score.
+  
+  # Debug statements!
+  print("Getting best reporter configuration for the following actor network:")
+  print(network[,1:nActors])
+  
+  # Get ancestry in actor network
+  actorAncestry = inclusive.ancestry( network )
+  rownames( actorAncestry ) = colnames( actorAncestry ) = getActors( laps )
+  
+  print("Computed ancestry:")
+  print(actorAncestry)
+  
+  # Keep track of best contribution to score from each reporter
+  scoreContributions = rep( -Inf, nReporters )
+  
+  # Keep track of seen ancestries
+  ancestryHistory = matrix( nrow = nActors, ncol = 0)
+  
+  # For each subset of actors
+  for ( n in 0:nActors ){
+    for ( actors in combn( getActors( laps ), n, simplify = FALSE ) ){
+      
+      # Get full ancestry for this reporter combination
+      ancestry = apply(as.matrix( actorAncestry[,actors] ),1,any)
+      if ( !any( apply( as.matrix( ancestry == ancestryHistory ), 2, all ) ) ){
+        ancestryHistory = cbind( ancestryHistory, ancestry )
+        
+        # For each reporter
+        for ( r in 1:nReporters ){
+          # Get the score contribution of this configuration:
+          
+          # Simple ancestry component:
+          score =
+            sum( ancestryScoreMatrix( laps )[ancestry,r], na.rm=TRUE ) +
+            sum( log1mexp(ancestryScoreMatrix( laps )[!ancestry,r]), na.rm=TRUE )
+          
+          # 2le KO component:
+          for ( i in 2:length(actors) ){
+            for ( b in actors[1:(i-1)] ){
+              a = actors[i]
+              
+              score = score +
+                if ( actorAncestry[a,b] || actorAncestry[b,a] )
+                  scoreSharedPathways( laps, a, b )[r]
+                else
+                  scoreIndependentPathways( laps, a, b )[r]
+            }
+          }
+          
+          # Check against contribution vector
+          if ( score > scoreContributions[r] ){
+            # Update contribution vector and network structure
+            scoreContributions[r] = score
+            network[,r] = FALSE
+            network[actors,r] = TRUE
+          }
+        }
+      }
+    }
+  }
+  
+  print( paste0( "Best score found to be: ", sum(scoreContributions) ) )
+  
+  return( list( score = sum( scoreContributions ), network = network ) )
 }
 
 # Smart edge toggle
