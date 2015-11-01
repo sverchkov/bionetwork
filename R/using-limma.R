@@ -34,18 +34,31 @@ makeLimmaLogProbs = function(
   nActors = length( actors );
   reporters = names(fit$Amean);
   nReporters = length( reporters );
+  
+  # We'll only keep reporters w/ significant changes in the WT, get them here.
+  sigReporters = ( 0 != decideTests(
+    eBayes( fit, proportion = prior )[,which( theColnames == wt )] ) )
 
   # We make one contrast for each singke KO and two contrasts for each double KO.
   contrastMatrix = mkContrastMatrix( actors, doubleSpecs, wt, theColnames )
   
+  # Treat a KO effect that is opposite to the WT effect as impossible.
   directionMismatch =
     sign( fit$coefficients[,wt] ) != sign( fit$coefficients[,actors] )
-    
-  fit4contrasts = eBayes( contrasts.fit(fit,contrastMatrix), proportion = prior );
+  
+  # Get the fit model to get the lods matrix
+  lodsMatrix = eBayes( contrasts.fit(fit,contrastMatrix), proportion = prior )$lods
   
   # Extract log-probs from fit.
-  singleGtWT = lprob.from.lods( fit4contrasts$lods[,1:nActors] )
+  singleGtWT = lprob.from.lods( lodsMatrix[,1:nActors] )
   singleGtWT[directionMismatch] = -Inf
+  
+  # We don't want to deal with NA "single>WT" probabilities, so those reporters that
+  # yield those will be thrown out too.
+  sigReporters = sigReporters & !apply(is.na(singleGtWT),1,any)
+  
+  # Now we trim
+  singleGtWT = singleGtWT[sigReporters,]
   
   doubleVsingle = NULL
 
@@ -55,11 +68,11 @@ makeLimmaLogProbs = function(
     for( j in 1:2 ){
       i = i+1
       
-      lprobs = lprob.from.lods( fit4contrasts$lods[,i] )
+      lprobs = lprob.from.lods( lodsMatrix[sigReporters,i] )
       
       directionMismatch =
-        sign( fit$coefficients[,gene[j]] ) !=
-        sign( fit4contrasts$coefficients[,i] )
+        sign( fit$coefficients[sigReporters,gene[j]] ) !=
+        sign( lodsMatrix[sigReporters,i] )
       
       item=NULL
       item$eq = log1mexp( lprobs )
@@ -68,6 +81,10 @@ makeLimmaLogProbs = function(
       doubleVsingle[[gene[j]]][[gene[3-j]]] = item
     }
   }
+  
+  # Update reporter list
+  reporters = reporters[sigReporters]
+  nReporters = length(reporters)
   
   # Return.
   LimmaLogProbs(
@@ -109,11 +126,12 @@ mkContrastMatrix = function( single.genes, double.specs, wt.str, the.colnames ){
 
 setMethod("+", signature(e1 = "LimmaLogProbs", e2 = "LimmaLogProbs"), function (e1,e2){
   
-  if( any( e1@reporters != e2@reporters) ) stop("Mismatching reporter lists not yet supported")
   if( e1@prior != e2@prior ) stop("Mismatched priors when merging limma log-prob objects")
   
-  reporters = e1@reporters
-  nReporters = e1@nReporters
+  reporters = intersect( e1@reporters, e2@reporters )
+  r1s = which( e1@reporters %in% reporters )
+  r2s = which( e2@reporters %in% reporters )
+  nReporters = length(reporters)
   prior = e1@prior
   
   actors.intersection = intersect( e1@actors, e2@actors )
@@ -124,20 +142,40 @@ setMethod("+", signature(e1 = "LimmaLogProbs", e2 = "LimmaLogProbs"), function (
 
   nActors = length( actors )
   
-  singleGtWT = cbind( e1@singleGtWT[,which(e1@actors %in% actors.only.1)],
-                               e2@singleGtWT[,which(e2@actors %in% actors.only.2)],
-                               e1@singleGtWT[,which(e1@actors %in% actors.intersection)] +
-                                 e2@singleGtWT[,which(e2@actors %in% actors.intersection)] -
-                                 log(prior/(1-prior)))
+  # Merge the single>WT matrix
+  singleGtWT = cbind(
+    e1@singleGtWT[r1s,which(e1@actors %in% actors.only.1)],
+    e2@singleGtWT[r2s,which(e2@actors %in% actors.only.2)],
+    combinePosteriors(
+      e1@singleGtWT[r1s,which(e1@actors %in% actors.intersection)],
+      e2@singleGtWT[r2s,which(e2@actors %in% actors.intersection)],
+      prior ) )
 
+  # Merge the double vs single matrix
   doubleVsingle = e1@doubleVsingle
   
-  for( gene1 in names(e2@doubleVsingle) )
-    for( gene2 in names(e2@doubleVsingle[[gene1]])){
-      if( is.null( doubleVsingle[[gene1]][[gene2]] ))
-        doubleVsingle[[gene1]][[gene2]] = e2@doubleVsingle[[gene1]][[gene2]]
-      else
-        doubleVsingle[[gene1]][[gene2]] = e2@doubleVsingle[[gene1]][[gene2]] + doubleVsingle[[gene1]][[gene2]] - log(prior/(1-prior))
+  # Clear reporters
+  for ( l1 in e1@doubleVsingle )
+    for ( l2 in l1 ){
+      l2$gt = l2$gt[r1s]
+      l2$eq = l2$eq[r1s]
+    }
+  
+  for ( gene1 in names(e2@doubleVsingle) )
+    for ( gene2 in names(e2@doubleVsingle[[gene1]]) ){
+      if ( is.null( doubleVsingle[[gene1]][[gene2]] ) ){
+        doubleVsingle[[gene1]][[gene2]]$gt = e2@doubleVsingle[[gene1]][[gene2]]$gt[r2s]
+        doubleVsingle[[gene1]][[gene2]]$eq = e2@doubleVsingle[[gene1]][[gene2]]$eq[r2s]
+      } else {
+        doubleVsingle[[gene1]][[gene2]]$gt = combinePosteriors(
+          e2@doubleVsingle[[gene1]][[gene2]]$gt[r2s],
+          doubleVsingle[[gene1]][[gene2]]$gt,
+          prior )
+        doubleVsingle[[gene1]][[gene2]]$eq = combinePosteriors(
+          e2@doubleVsingle[[gene1]][[gene2]]$eq[r2s],
+          doubleVsingle[[gene1]][[gene2]]$eq,
+          1-prior )
+      }
     }
   
   LimmaLogProbs(
@@ -150,3 +188,7 @@ setMethod("+", signature(e1 = "LimmaLogProbs", e2 = "LimmaLogProbs"), function (
     doubleVsingle = doubleVsingle
   )
 })
+
+combinePosteriors = function( p1, p2, prior ){
+  lprob.from.lods( lprob2lods( p1 ) + lprob2lods( p2 ) - log(prior/(1-prior)) )
+}

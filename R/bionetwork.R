@@ -17,7 +17,10 @@ setGeneric(name = "ancestryScoreMatrix",
              { standardGeneric("ancestryScoreMatrix") } )
 setGeneric(name = "getActors",
            def = function(theObject)
-             { standardGeneric("getActors") } )
+           { standardGeneric("getActors") } )
+setGeneric(name = "getReporters",
+           def = function(theObject)
+           { standardGeneric("getReporters") } )
 setGeneric(name = "howManyActors",
            def = function(theObject)
            { standardGeneric("howManyActors") } )
@@ -79,6 +82,10 @@ setMethod(f = "getActors",
           signature = "LimmaLogProbs",
           definition = function(theObject) theObject@actors )
 
+setMethod(f = "getReporters",
+          signature = "LimmaLogProbs",
+          definition = function(theObject) theObject@reporters )
+
 setMethod(f= "howManyActors",
           signature = "LimmaLogProbs",
           definition = function(theObject) theObject@nActors )
@@ -87,6 +94,54 @@ setMethod(f= "howManyReporters",
           signature = "LimmaLogProbs",
           definition = function(theObject) theObject@nReporters )
 
+# Multiple start (by default greedy) search,
+# only over ancesty-like networks:
+multiStartANetworkSearch <- function(
+  lp,
+  searchFunction=getMLNetwork)
+  # See getMLNetwork for parameter definitions
+{
+  # Let n = number of actors
+  actors = getActors(lp)
+  n = howManyActors(lp)
+  nReporters = howManyReporters(lp)
+  # We want to do a search starting with each combination of the possible
+  # n^2 - n edges.
+  # Start by getting the list of edges
+  edges = which( matrix( TRUE, nrow=n, ncol=n ) & ! diag(n) )
+  
+  # Keep track of max score
+  max.score = -Inf
+  max.network = NULL
+  
+  # Next iterate over 0-max num of edges
+  for( n.edges in 0:length(edges) )
+    # Iterate over combinations
+    for( combination in combn(edges, n.edges, simplify = FALSE) ){
+      # Make ancestry graph
+      ancestry = diag(n)
+      for( i in combination ) ancestry[i] = TRUE
+      
+      # Check ancestry (skip if not holding)
+      if ( all( ancestry == inclusive.ancestry( ancestry ) ) ){
+  
+        # Get a network from the ancestry graph      
+        network = cbind( ancestry & !diag(n), matrix( FALSE, nrow=n, ncol=nReporters ) )
+        
+        ml.result =
+          searchFunction( lp, n, nReporters, network )
+        
+        candidate.network = ml.result[[1]]
+        candidate.score = ml.result[[2]]
+        if( candidate.score > max.score ){
+          max.score = candidate.score
+          max.network = candidate.network
+        }
+      }
+    }
+  
+  return(list(max.score,max.network))
+}
 
 # Multiple start (by default greedy) search:
 multiStartNetworkSearch <- function(
@@ -177,6 +232,7 @@ getMLNetwork <- function(
   }
 }
 
+
 #   Network score calculation
 #   Assumes the following structure for lprobs:
 #   lprobs$single.gt.wt is an n.actors x n.reporters matrix with the log probability
@@ -248,7 +304,9 @@ getBestReporters = function(
   
   # Get ancestry in actor network
   actorAncestry = inclusive.ancestry( network )
-  rownames( actorAncestry ) = colnames( actorAncestry ) = getActors( laps )
+  rownames( actorAncestry ) =
+    colnames( actorAncestry ) =
+    rownames( network ) = getActors( laps )
   
   print("Computed ancestry:")
   print(actorAncestry)
@@ -265,7 +323,10 @@ getBestReporters = function(
       
       # Get full ancestry for this reporter combination
       ancestry = apply(as.matrix( actorAncestry[,actors] ),1,any)
-      if ( !any( apply( as.matrix( ancestry == ancestryHistory ), 2, all ) ) ){
+      if (
+        dim(ancestryHistory)[2] < 1 ||
+        !any( apply( as.matrix( ancestry == ancestryHistory ), 2, all ) )
+      ){
         ancestryHistory = cbind( ancestryHistory, ancestry )
         
         # For each reporter
@@ -278,20 +339,22 @@ getBestReporters = function(
             sum( log1mexp(ancestryScoreMatrix( laps )[!ancestry,r]), na.rm=TRUE )
           
           # 2le KO component:
-          for ( i in 2:length(actors) ){
-            for ( b in actors[1:(i-1)] ){
-              a = actors[i]
-              
-              score = score +
-                if ( actorAncestry[a,b] || actorAncestry[b,a] )
-                  scoreSharedPathways( laps, a, b )[r]
-                else
-                  scoreIndependentPathways( laps, a, b )[r]
+          if ( length(actors) > 1 ){
+            for ( i in 2:length(actors) ){
+              for ( b in actors[1:(i-1)] ){
+                a = actors[i]
+                
+                score = score +
+                  if ( actorAncestry[a,b] || actorAncestry[b,a] )
+                    scoreSharedPathways( laps, a, b )[r]
+                  else
+                    scoreIndependentPathways( laps, a, b )[r]
+              }
             }
           }
           
           # Check against contribution vector
-          if ( score > scoreContributions[r] ){
+          if ( !is.na(score) && !is.nan(score) && score > scoreContributions[r] ){
             # Update contribution vector and network structure
             scoreContributions[r] = score
             network[,r] = FALSE
@@ -303,6 +366,12 @@ getBestReporters = function(
   }
   
   print( paste0( "Best score found to be: ", sum(scoreContributions) ) )
+  
+  infinite = which( scoreContributions == -Inf )
+  if( length(infinite) > 0 ){
+    print( paste0( "Found ", length(infinite), " prblematic reporters:" ) )
+    print( getReporters( laps )[infinite] )
+  }
   
   return( list( score = sum( scoreContributions ), network = network ) )
 }
@@ -439,7 +508,14 @@ inclusive.ancestry = function(network) {
 
 # Data prep help: get log probability from log-odds
 lprob.from.lods = function( lods ){
-  return( lods - log1p(1+expm1( lods )) )
+  result = lods - log1p( exp( lods ) )
+  result[ lods == Inf ] = 0
+  return( result )
+}
+
+# And the backwards conversion
+lprob2lods = function( lprob ){
+  lprob - log1mexp( lprob )
 }
 
 # Data prep help: check that element-wise signs match on two vectors
@@ -455,7 +531,9 @@ log1mexp = function(x){
     result[calculate.differently] = log1p(-exp(x[calculate.differently]))
     result
   } else {
-    if( x < log(2) )
+    if( is.na(x) )
+      NA
+    else if( x < log(2) )
       log1p(-exp(x))
     else
       log(-expm1(x))
