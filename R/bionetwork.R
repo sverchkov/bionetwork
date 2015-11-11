@@ -115,12 +115,12 @@ multiStartANetworkSearch <- function(
   max.network = NULL
   
   # Next iterate over 0-max num of edges
-  for( n.edges in 0:length(edges) )
+  for ( n.edges in 0:length(edges) )
     # Iterate over combinations
-    for( combination in combn(edges, n.edges, simplify = FALSE) ){
+    for ( combination in combn(edges, n.edges, simplify = FALSE) ){
       # Make ancestry graph
       ancestry = diag(n)
-      for( i in combination ) ancestry[i] = TRUE
+      for ( i in combination ) ancestry[i] = TRUE
       
       # Check ancestry (skip if not holding)
       if ( all( ancestry == inclusive.ancestry( ancestry ) ) ){
@@ -131,8 +131,8 @@ multiStartANetworkSearch <- function(
         ml.result =
           searchFunction( lp, n, nReporters, network )
         
-        candidate.network = ml.result[[1]]
-        candidate.score = ml.result[[2]]
+        candidate.network = ml.result$network
+        candidate.score = ml.result$score
         if( candidate.score > max.score ){
           max.score = candidate.score
           max.network = candidate.network
@@ -140,7 +140,7 @@ multiStartANetworkSearch <- function(
       }
     }
   
-  return(list(max.score,max.network))
+  return( list( score = max.score, network = max.network ) )
 }
 
 # Multiple start (by default greedy) search:
@@ -357,8 +357,8 @@ getBestReporters = function(
           if ( !is.na(score) && !is.nan(score) && score > scoreContributions[r] ){
             # Update contribution vector and network structure
             scoreContributions[r] = score
-            network[,r] = FALSE
-            network[actors,r] = TRUE
+            network[,r+nActors] = FALSE
+            network[actors,r+nActors] = TRUE
           }
         }
       }
@@ -488,6 +488,213 @@ compute.score.change = function(
   return(score.change)
 }
 
+##################### START November 10, 2015 #######################
+# Exhaustive network search that will come up with actor-node-splits
+# if they are necessary based on the data.
+searchWithSplits = function( laps )
+  # See getMLNetwork for parameter definitions
+{
+  # Let n = number of actors
+  n = howManyActors( laps )
+  nReporters = howManyReporters( laps )
+  # We want to do a search starting with each combination of the possible
+  # n^2 - n edges.
+  # Start by getting the list of edges
+  edges = which( matrix( TRUE, nrow=n, ncol=n ) & ! diag( n ) )
+  
+  # Keep track of max score per structure per reporter
+  reporter.ancestry = array(
+    FALSE,
+    dim = c(n,n+1,nReporters),
+    dimnames = list(
+      getActors( laps ),
+      c( getActors( laps ), "r" ),
+      getReporters( laps ) ) )
+
+  reporter.scores = rep( -Inf, nReporters )
+  
+  # Next iterate over 0-max num of edges
+  for ( n.edges in 0:length( edges ) )
+    # Iterate over combinations
+    for ( combination in combn(edges, n.edges, simplify = FALSE) ){
+      # Make ancestry graph
+      ancestry = diag( n )
+      rownames( ancestry ) = colnames( ancestry) = getActors( laps )
+      for ( i in combination ) ancestry[i] = TRUE
+      
+      # Check ancestry (skip if not holding)
+      if ( all( ancestry == inclusive.ancestry( ancestry ) ) ){
+        
+        # Debug statements!
+        print("Getting best reporter configuration for the following ancestry:")
+        print( ancestry )
+        
+        # Keep track of seen reporter ancestries
+        ancestryHistory = matrix( nrow = n, ncol = 0)
+        
+        # For each subset of actors
+        for ( k in 0:n ){
+          for ( actors in combn( getActors( laps ), k, simplify = FALSE ) ){
+            
+            # Get full ancestry for this reporter combination
+            reporterAncestry = apply(as.matrix( ancestry[,actors] ),1,any)
+            if (
+              dim(ancestryHistory)[2] < 1 ||
+              !any( apply( as.matrix( reporterAncestry == ancestryHistory ), 2, all ) )
+            ){
+              ancestryHistory = cbind( ancestryHistory, reporterAncestry )
+              
+              # For each reporter
+              for ( r in 1:nReporters ){
+                # Get the score contribution of this configuration:
+                
+                # Simple ancestry component:
+                score =
+                  sum( ancestryScoreMatrix( laps )[reporterAncestry,r], na.rm=TRUE ) +
+                  sum( log1mexp(ancestryScoreMatrix( laps )[!reporterAncestry,r]), na.rm=TRUE )
+                
+                # 2le KO component:
+                if ( length(actors) > 1 ){
+                  for ( i in 2:length(actors) ){
+                    for ( b in actors[1:(i-1)] ){
+                      a = actors[i]
+                      
+                      score = score +
+                        if ( ancestry[a,b] || ancestry[b,a] )
+                          scoreSharedPathways( laps, a, b )[r]
+                        else
+                          scoreIndependentPathways( laps, a, b )[r]
+                    }
+                  }
+                }
+                
+                # Check against contribution vector
+                if ( !is.na(score) && !is.nan(score) && score > reporter.scores[r] ){
+                  # Update contribution vector and network structure
+                  reporter.scores[r] = score
+                  reporter.ancestry[,,r] = cbind( ancestry, reporterAncestry )
+                }
+              }
+            }
+          }
+        }
+        
+        print( paste0( "Best score found to be: ", sum(reporter.scores) ) )
+        
+        infinite = which( reporter.scores == -Inf )
+        if( length(infinite) > 0 ){
+          print( paste0( "Found ", length(infinite), " prblematic reporters:" ) )
+          print( getReporters( laps )[infinite] )
+        }
+        
+      }
+    }
+  
+  # Need to resolve these ancestries into one network we'll do that in another
+  # function.  
+  return( list( scores = reporter.scores, ancestries = reporter.ancestry ) )
+}
+###################### END November 10, 2015 ########################
+
+##################### Start November 11, 2015 #######################
+## A function to collapse the array of ancestries into one tree with
+## Possibly duplicate nodes.
+
+ancestries2graph = function(
+  ancestries, # An (actors)x(actors+1)x(reporters) array
+  actors = dimnames( ancestries )[[1]],
+  reporters = dimnames( ancestries )[[3]] ){
+  
+  n = length( actors )
+  nReporters = length( reporters )
+  
+  # Coerce to logical
+  ancestries = ancestries == TRUE
+  
+  # The final outcome will have this list-of-pointers representation
+  rList = NULL #as.list( rep( NULL, nReporters ) )
+  #names( rList ) = reporters
+  # The pointers will point into the list-of-lists where you have
+  # each actor represented by a list of versions, defined by the actor's ancestry
+  aList = NULL # as.list( rep( NULL, n) )
+  #names( aList ) = actors
+  
+  for ( r in 1:nReporters ){
+    # First, infer parents from ancestry.
+    parents = ancestries[,n+1,r]
+    done = any( parents )
+    for ( i in 1:n ){
+      if ( parents[i] ){
+        if ( any( ancestries[i,1:n,r] & !logicVector( n, i ) & parents ) )
+          parents[i] = FALSE
+      }
+    }
+    
+    # Now, parenthood is going to become "pointers" into a list-of-lists,
+    # representing the multiple parent versions.
+    pointers = matrix(nrow=0,ncol=2)
+    colnames(pointers) = c("gene","version")
+    for ( parent in which( parents == TRUE ) ){
+      # Try to find parent in aList
+      # First get the identifying ancestry matrix for parent
+      parent.ancestry = ancestries[1:n,1:n,r]
+      parent.ancestry[,!ancestries[,parent,r]] = FALSE
+      # Then compare it to every identifying matrix in aList
+      ver = 1
+      for ( item in aList[[ parent ]] ){
+        if ( all( item == parent.ancestry ) )
+          break
+        ver = ver + 1
+      }
+      if ( ver > length( aList[[ parent ]] ) )
+        aList[[parent]][[ver]] = parent.ancestry
+      
+      pointers = rbind(pointers,c(parent,ver))
+    }
+    rList[[reporters[r]]] = pointers
+  }
+  
+  # Now get actors to point at actor versions too
+  aPtrList = NULL
+  for ( a in 1:n ){
+    vList = NULL
+    for ( ver in 1:length( aList[[a]] ) ){
+      pList = matrix(nrow=0,ncol=2)
+      colnames( pList ) = c("gene","version")
+      ancestry = aList[[a]][[ver]]
+      for ( ancestor in which( ancestry[,a] ) ){
+        if ( ancestor != a ){
+          # Try and find the right version
+          v2 = 1
+          for ( prof in aList[[ancestor]] ){
+            if ( all( prof[,prof[,ancestor]] == ancestry[,ancestry[,ancestor]] ) )
+              break
+            v2 = v2 + 1
+          }
+          pList = rbind( pList, c(ancestor,v2) )
+        }
+      }
+      vList[[ver]] = pList
+    }
+    aPtrList[actors[a]] = list(vList)
+  }
+  
+  #names(aPtrList) = actors
+  
+  return ( list( reporter.pointers = rList, actor.ptrs = aPtrList, actor.specs = aList ) )
+}
+
+cytoscapeThatGraph = function( customResult ){
+  
+  displayed.names = vector(mode = "character")
+  unique.names = vector(mode = "character")
+  duplication.id = vector(mode = "numeric")
+  
+  return list( edges = edges, nodes = nodes )
+}
+
+###################### End November 11, 2015 ########################
+
 # Inclusive ancestry of the square part of the matrix
 inclusive.ancestry = function(network) {
   # Get square part of network
@@ -572,3 +779,5 @@ score.edge.toggles.old <- function( network, lprobs, score=score.network(network
   }
   return(toggle.scores)
 }
+
+logicVector = function( n = 1, i = 1 ) c(rep(FALSE,i-1),TRUE,rep(FALSE,n-i))
