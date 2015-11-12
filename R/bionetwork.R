@@ -689,6 +689,48 @@ cytoscapeThatGraph = function( customResult ){
   displayed.names = vector(mode = "character")
   unique.names = vector(mode = "character")
   duplication.id = vector(mode = "numeric")
+  edge.source = vector(mode = "character")
+  edge.target = vector(mode = "character")
+  
+  actors = names( customResult$actor.ptrs )
+  reporters = names( customResult$reporter.pointers )
+  
+  # For readability we'll use indeces to grow vectors
+  j = 0 # Node table index
+  k = 0 # Edge table index
+  
+  for ( i in 1:length( actors ) ){
+    for ( ver in 1:length( customResult$actor.ptrs[[i]] ) ){
+      j = j + 1
+      displayed.names[j] = actors[i]
+      unique.names[j] = paste0( actors[i], "(", ver, ")" ) )
+      duplication.id[j] = ver
+      parents = customResult$actor.ptrs[[i]][[ver]]
+      rows = dim( parents )[1]
+      if ( rows > 0 ) for ( row in 1:rows ){
+        k = k + 1
+        edge.source[k] = paste0( actors[parents[row,1]], "(", parents[row,2], ")" )
+        edge.target[k] = unique.names[j]
+      }
+    }
+  }
+  
+  displayed.names = c( displayed.names, reporters )
+  unique.names = c( unique.names, reporters )
+  duplication.id = c( duplication.id, rep( 0, length( reporters ) ) )
+  
+  for ( i in 1:length( reporters ) ){
+    parents = coustomResult$reporter.pointers[[i]]
+    rows = dim( parents )[1]
+    if ( rows > 0 ) for ( row in 1:rows ){
+      k = k + 1
+      edge.source[k] = paste0( actors[parents[row,1]], "(", parents[row,2], ")" )
+      edge.target[k] = reporters[i]
+    }
+  }
+  
+  nodes = data.frame( uid = unique.names, label = displayed.names, copy = duplication.id, stringsAsFactors = FALSE )
+  edges = data.frame( src = edge.source, dst = edge.target, stringsAsFactors = FALSE )
   
   return list( edges = edges, nodes = nodes )
 }
