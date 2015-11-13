@@ -703,7 +703,7 @@ cytoscapeThatGraph = function( customResult ){
     for ( ver in 1:length( customResult$actor.ptrs[[i]] ) ){
       j = j + 1
       displayed.names[j] = actors[i]
-      unique.names[j] = paste0( actors[i], "(", ver, ")" ) )
+      unique.names[j] = paste0( actors[i], "(", ver, ")" )
       duplication.id[j] = ver
       parents = customResult$actor.ptrs[[i]][[ver]]
       rows = dim( parents )[1]
@@ -720,7 +720,7 @@ cytoscapeThatGraph = function( customResult ){
   duplication.id = c( duplication.id, rep( 0, length( reporters ) ) )
   
   for ( i in 1:length( reporters ) ){
-    parents = coustomResult$reporter.pointers[[i]]
+    parents = customResult$reporter.pointers[[i]]
     rows = dim( parents )[1]
     if ( rows > 0 ) for ( row in 1:rows ){
       k = k + 1
@@ -732,7 +732,7 @@ cytoscapeThatGraph = function( customResult ){
   nodes = data.frame( uid = unique.names, label = displayed.names, copy = duplication.id, stringsAsFactors = FALSE )
   edges = data.frame( src = edge.source, dst = edge.target, stringsAsFactors = FALSE )
   
-  return list( edges = edges, nodes = nodes )
+  return( list( edges = edges, nodes = nodes ) )
 }
 
 ###################### End November 11, 2015 ########################
