@@ -10,6 +10,71 @@ LimmaLogProbs = setClass("LimmaLogProbs",
                            doubleVsingle = "list"
                          ))
 
+# Here we associate the generics from laps-interface with the class.
+setMethod(f = "scoreIndependentPathways",
+          signature(theObject = "LimmaLogProbs", actor1 = "character", actor2 = "character"),
+          definition = function(theObject, actor1, actor2){
+            (
+              if( actor1 %in% names(theObject@doubleVsingle) &&
+                  actor2 %in% names( theObject@doubleVsingle[[actor1]] ) )
+                theObject@doubleVsingle[[actor1]][[actor2]][["gt"]]
+              else -log(2)
+            ) + (
+              if( actor2 %in% names(theObject@doubleVsingle) &&
+                  actor1 %in% names( theObject@doubleVsingle[[actor2]] ) )
+                theObject@doubleVsingle[[actor2]][[actor1]][["gt"]]
+              else -log(2)
+            )
+          })
+
+setMethod(f = "scoreIndependentPathways",
+          signature(theObject = "LimmaLogProbs", actor1 = "numeric", actor2 = "numeric"),
+          definition = function(theObject,actor1,actor2){
+            scoreIndependentPathways(theObject, theObject@actors[actor1],theObject@actors[actor2])
+          })
+
+setMethod(f = "scoreSharedPathways",
+          signature(theObject = "LimmaLogProbs", actor1 = "character", actor2 = "character"),
+          definition = function(theObject, actor1, actor2){
+            (
+              if( actor1 %in% names(theObject@doubleVsingle) &&
+                  actor2 %in% names( theObject@doubleVsingle[[actor1]] ) )
+                theObject@doubleVsingle[[actor1]][[actor2]][["eq"]]
+              else -log(2)
+            ) + (
+              if( actor2 %in% names(theObject@doubleVsingle) &&
+                  actor1 %in% names( theObject@doubleVsingle[[actor2]] ) )
+                theObject@doubleVsingle[[actor2]][[actor1]][["eq"]]
+              else -log(2)
+            )
+          })
+
+setMethod(f = "scoreSharedPathways",
+          signature(theObject = "LimmaLogProbs", actor1 = "numeric", actor2 = "numeric"),
+          definition = function(theObject,actor1,actor2){
+            scoreSharedPathways(theObject, theObject@actors[actor1],theObject@actors[actor2])
+          })
+
+setMethod(f = "ancestryScoreMatrix",
+          signature = "LimmaLogProbs",
+          definition = function(theObject) t(theObject@singleGtWT) )
+
+setMethod(f = "getActors",
+          signature = "LimmaLogProbs",
+          definition = function(theObject) theObject@actors )
+
+setMethod(f = "getReporters",
+          signature = "LimmaLogProbs",
+          definition = function(theObject) theObject@reporters )
+
+setMethod(f= "howManyActors",
+          signature = "LimmaLogProbs",
+          definition = function(theObject) theObject@nActors )
+
+setMethod(f= "howManyReporters",
+          signature = "LimmaLogProbs",
+          definition = function(theObject) theObject@nReporters )
+
 # Use limma to get lprobs.
 # Starting point is having a 'fit' (before contrasts).
 # Automatically build contrasts and run the right models.
