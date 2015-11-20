@@ -18,12 +18,12 @@ setMethod(f = "scoreIndependentPathways",
               if( actor1 %in% names(theObject@doubleVsingle) &&
                   actor2 %in% names( theObject@doubleVsingle[[actor1]] ) )
                 theObject@doubleVsingle[[actor1]][[actor2]][["gt"]]
-              else -log(2)
+              else rep( -log(2), theObject@nReporters )
             ) + (
               if( actor2 %in% names(theObject@doubleVsingle) &&
                   actor1 %in% names( theObject@doubleVsingle[[actor2]] ) )
                 theObject@doubleVsingle[[actor2]][[actor1]][["gt"]]
-              else -log(2)
+              else rep( -log(2), theObject@nReporters )
             )
           })
 
@@ -40,12 +40,12 @@ setMethod(f = "scoreSharedPathways",
               if( actor1 %in% names(theObject@doubleVsingle) &&
                   actor2 %in% names( theObject@doubleVsingle[[actor1]] ) )
                 theObject@doubleVsingle[[actor1]][[actor2]][["eq"]]
-              else -log(2)
+              else rep( -log(2), theObject@nReporters )
             ) + (
               if( actor2 %in% names(theObject@doubleVsingle) &&
                   actor1 %in% names( theObject@doubleVsingle[[actor2]] ) )
                 theObject@doubleVsingle[[actor2]][[actor1]][["eq"]]
-              else -log(2)
+              else rep( -log(2), theObject@nReporters )
             )
           })
 
@@ -243,7 +243,7 @@ setMethod("+", signature(e1 = "LimmaLogProbs", e2 = "LimmaLogProbs"), function (
       }
     }
   
-  LimmaLogProbs(
+  cleanUpLLP( LimmaLogProbs(
     actors = actors,
     reporters = reporters,
     prior = prior,
@@ -251,9 +251,22 @@ setMethod("+", signature(e1 = "LimmaLogProbs", e2 = "LimmaLogProbs"), function (
     nReporters = nReporters,
     singleGtWT = singleGtWT,
     doubleVsingle = doubleVsingle
-  )
+  ) )
 })
 
 combinePosteriors = function( p1, p2, prior ){
   lprob.from.lods( lprob2lods( p1 ) + lprob2lods( p2 ) - log(prior/(1-prior)) )
+}
+
+cleanUpLLP = function ( llp ){
+  for ( gene1 in names( llp@doubleVsingle ) )
+    for ( gene2 in names( llp@doubleVsingle[[gene1]] ) )
+      for ( theList in c("gt", "eq") ){
+        clean.vector = llp@doubleVsingle[[gene1]][[gene2]][[theList]][llp@reporters]
+        llp@doubleVsingle[[gene1]][[gene2]][[theList]] = clean.vector
+        llp@doubleVsingle[[gene1]][[gene2]][[theList]][is.na(clean.vector)] = -log(
+          if ( theList == "gt" ){ llp@prior }else{ 1 - llp@prior } )
+      }
+      
+  return ( llp )
 }

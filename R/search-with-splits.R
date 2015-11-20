@@ -96,13 +96,18 @@ getHeuristicScore = function ( laps, reporterIndex, depth, adjacency ){
   
   if( depth > 0 ){
     indeces = which( uncertain )
-    uncertain[ length( indeces ) - ( ( depth - 1 ):0 ) ] = FALSE
+    uncertain[ indeces[ length( indeces ) - ( ( depth - 1 ):0 ) ] ] = FALSE
   }
+  
+  #print( uncertain )
   
   # Derive ancestry
   ancestral = deriveAncestry( adjacency, uncertain )
   uncertain = ancestral$uncertain
   ancestry = ancestral$ancestry
+  
+  #print( uncertain )
+  #print( ancestry )
   
   # Score
   
@@ -114,21 +119,25 @@ getHeuristicScore = function ( laps, reporterIndex, depth, adjacency ){
     # Certain non-ancestors
     sum( log1mexp(
       local.scores[ !ancestry[, n + 1 ] & !uncertain[, n + 1 ] ] ), na.rm=TRUE ) +
-    # Uncestain
-    sum( mapply(
-      max,
-      local.scores[ uncertain ],
-      log1mexp( local.scores[ uncertain ] ) ), na.rm = TRUE )
+    # Uncertain
+    if ( any ( uncertain[, n + 1 ] ) ){
+      sum( mapply(
+        max,
+        local.scores[ uncertain[, n + 1 ] ],
+        log1mexp( local.scores[ uncertain[, n + 1 ] ] ) ), na.rm = TRUE )
+    }else 0
   
   # 2le KO component:
-  actors = which( ancestry[, n + 1 ] & uncertain[, n + 1 ] )
+  actors = which( ancestry[, n + 1 ] | uncertain[, n + 1 ] )
   if ( length( actors ) > 1 ){
     for ( i in 2:length( actors ) ){
       for ( b in actors[ 1:( i - 1 ) ] ){
         a = actors[ i ]
         sp.score = scoreSharedPathways( laps, a, b )[reporterIndex]
         ip.score = scoreIndependentPathways( laps, a, b )[reporterIndex]
-        
+        #print( score )
+        #print( sp.score )
+        #print( ip.score )
         score = score +
           if ( any( uncertain[ c( a, b ), c( a, b, n + 1 ) ] ) ){
             max( sp.score, ip.score )
@@ -156,8 +165,9 @@ deriveAncestry = function ( adjacency, uncertain ){
   adjacency[ uncertain ] = FALSE
   
   # Next, derive certain ancestry
-  ancestry = ( diag( nrow = n, ncol = m ) == TRUE )
-  updated.ancestry = ancestry | adjacency
+  ancestry = ( diag( m ) == TRUE )
+  updated.ancestry = matrix( FALSE, nrow = m, ncol = m )
+  updated.ancestry[1:n,1:m] = ancestry[1:n,1:m] | adjacency
   while ( any( ancestry != updated.ancestry ) ){
     ancestry = updated.ancestry
     for ( node in 1:m ){
@@ -166,8 +176,9 @@ deriveAncestry = function ( adjacency, uncertain ){
     }
   }
   
-  updated.uncertain = uncertain
-  uncertain = matrix( FALSE, nrow = n, ncol = m )
+  updated.uncertain = matrix( FALSE, nrow = m, ncol = m )
+  updated.uncertain[1:n,1:m] = uncertain
+  uncertain = matrix( FALSE, nrow = m, ncol = m )
   while ( any( uncertain != updated.uncertain ) ){
     uncertain = updated.uncertain
     propagator = updated.uncertain | updated.ancestry
@@ -178,5 +189,5 @@ deriveAncestry = function ( adjacency, uncertain ){
   }
   updated.uncertain[updated.ancestry] = FALSE
   
-  return ( list( ancestry = updated.ancestry, uncertain = updated.uncertain ) )
+  return ( list( ancestry = updated.ancestry[1:n,1:m], uncertain = updated.uncertain[1:n,1:m] ) )
 }
