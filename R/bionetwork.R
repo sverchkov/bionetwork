@@ -4,8 +4,8 @@
 # Initial creation: August 10, 2015
 # Yuriy Sverchkov
 
-# Multiple start (by default greedy) search,
-# only over ancesty-like networks:
+#' Multiple start (by default greedy) search,
+#' only over ancesty-like networks:
 multiStartANetworkSearch <- function(
   lp,
   searchFunction=getMLNetwork)
@@ -53,7 +53,7 @@ multiStartANetworkSearch <- function(
   return( list( score = max.score, network = max.network ) )
 }
 
-# Multiple start (by default greedy) search:
+#' Multiple start (by default greedy) search:
 multiStartNetworkSearch <- function(
   lp,
   searchFunction=getMLNetwork)
@@ -99,7 +99,7 @@ multiStartNetworkSearch <- function(
   return(list(max.score,max.network))
 }
 
-# Greedy edge toggle search:
+#' Greedy edge toggle search:
 getMLNetwork <- function(
   lp,
   nActors = length(getActors(lp)),
@@ -143,16 +143,16 @@ getMLNetwork <- function(
 }
 
 
-#   Network score calculation
-#   Assumes the following structure for lprobs:
-#   lprobs$single.gt.wt is an n.actors x n.reporters matrix with the log probability
-# that the single KO has a greater effect than the WT effect on the reporter.
-#   lprobs$single.ngt.wt is log( 1 - exp( single.gt.wt ) )
-#   lprobs$double.eq.single is a 3-d n.actors (1) x n.actors (2) x n.reporters array
-# of the probability that actor 1 knocked out with actor 2 have the same effect on the
-# reporter as actor 1 alone.
-#   lprobs$double.gt.single is as above but probability of the double KO having a
-# greater effect
+#'   Network score calculation
+#'   Assumes the following structure for lprobs:
+#'   lprobs$single.gt.wt is an n.actors x n.reporters matrix with the log probability
+#' that the single KO has a greater effect than the WT effect on the reporter.
+#'   lprobs$single.ngt.wt is log( 1 - exp( single.gt.wt ) )
+#'   lprobs$double.eq.single is a 3-d n.actors (1) x n.actors (2) x n.reporters array
+#' of the probability that actor 1 knocked out with actor 2 have the same effect on the
+#' reporter as actor 1 alone.
+#'   lprobs$double.gt.single is as above but probability of the double KO having a
+#' greater effect
 scoreNetwork <- function( network, lp ){
   
   # Determine current ancestry.
@@ -197,8 +197,8 @@ scoreNetwork <- function( network, lp ){
   return(score)
 }
 
-# Greedy reporter assignment:
-# Finds the maximum-scoring network with arcs to reporters for a fixed actor network
+#' Greedy reporter assignment:
+#' Finds the maximum-scoring network with arcs to reporters for a fixed actor network
 getBestReporters = function(
   laps,
   nActors = howManyActors(laps),
@@ -286,8 +286,8 @@ getBestReporters = function(
   return( list( score = sum( scoreContributions ), network = network ) )
 }
 
-# Smart edge toggle
-# laps stands for local ancestry and pathway scores
+#' Smart edge toggle
+#' laps stands for local ancestry and pathway scores
 scoreEdgeToggles = function(
   network,
   laps) 
@@ -353,6 +353,7 @@ scoreEdgeToggles = function(
   return(toggle.scores)
 }
 
+#' Compute the score change
 compute.score.change = function(
   reporter,
   old.ancestry,
@@ -399,8 +400,8 @@ compute.score.change = function(
 }
 
 ##################### START November 10, 2015 #######################
-# Exhaustive network search that will come up with actor-node-splits
-# if they are necessary based on the data.
+#' Exhaustive network search that will come up with actor-node-splits
+#' if they are necessary based on the data.
 searchWithSplits = function( laps )
   # See getMLNetwork for parameter definitions
 {
@@ -507,8 +508,8 @@ searchWithSplits = function( laps )
 ###################### END November 10, 2015 ########################
 
 ##################### Start November 11, 2015 #######################
-## A function to collapse the array of ancestries into one tree with
-## Possibly duplicate nodes.
+#' A function to collapse the array of ancestries into one tree with
+#' Possibly duplicate nodes.
 
 ancestries2graph = function(
   ancestries, # An (actors)x(actors+1)x(reporters) array
@@ -594,6 +595,7 @@ ancestries2graph = function(
   return ( list( reporter.pointers = rList, actor.ptrs = aPtrList, actor.specs = aList ) )
 }
 
+#' Turn graph into edge-node representation
 cytoscapeThatGraph = function( customResult ){
   
   displayed.names = vector(mode = "character")
@@ -647,7 +649,7 @@ cytoscapeThatGraph = function( customResult ){
 
 ###################### End November 11, 2015 ########################
 
-# Inclusive ancestry of the square part of the matrix
+#' Inclusive ancestry of the square part of the matrix
 inclusive.ancestry = function(network) {
   # Get square part of network
   rows = nrow( network )
@@ -665,23 +667,23 @@ inclusive.ancestry = function(network) {
   }
 }
 
-# Data prep help: get log probability from log-odds
+#' Data prep help: get log probability from log-odds
 lprob.from.lods = function( lods ){
   result = lods - log1p( exp( lods ) )
   result[ lods == Inf ] = 0
   return( result )
 }
 
-# And the backwards conversion
+#' And the backwards conversion
 lprob2lods = function( lprob ){
   lprob - log1mexp( lprob )
 }
 
-# Data prep help: check that element-wise signs match on two vectors
+#' Data prep help: check that element-wise signs match on two vectors
 signs.match = function( a, b ){ sign(a)==sign(b) }
 
-# Compute log(1-exp(x)) accurately.
-# Based on "Accurately Computing log(1-exp(-|a|))" by Martin Mächler
+#' Compute log(1-exp(x)) accurately.
+#' Based on "Accurately Computing log(1-exp(-|a|))" by Martin Mächler
 log1mexp = function(x){
   if ( length(x) < 1 ) return( numeric(0) )
   if ( length(x) > 1 ){
@@ -699,8 +701,8 @@ log1mexp = function(x){
   }
 }
 
-# Utility for output
-# Convert adjacency matrix to cytoscape edge list
+#' Utility for output
+#' Convert adjacency matrix to cytoscape edge list
 edgesFromMatrix = function(
   adjacency,
   nodeNames =
@@ -719,7 +721,7 @@ edgesFromMatrix = function(
 }
 
 
-# How to score an edge toggle
+#' How to score an edge toggle
 score.edge.toggles.old <- function( network, lprobs, score=score.network(network,lprobs) ){
   # Naive hackery:
   # Just score every move the old fashioned way
@@ -732,4 +734,5 @@ score.edge.toggles.old <- function( network, lprobs, score=score.network(network
   return(toggle.scores)
 }
 
+#' Making a logic vector
 logicVector = function( n = 1, i = 1 ) c(rep(FALSE,i-1),TRUE,rep(FALSE,n-i))

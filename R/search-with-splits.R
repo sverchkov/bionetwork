@@ -1,8 +1,10 @@
 # search-with-splits.R
 # Searches for a best network considering splits.
 
-# This version looks for the best actor ancestry individually per reporter and then
-# composes.
+#' Search with splits
+#' 
+#' This version looks for the best actor ancestry individually per reporter and then
+#' composes.
 searchWithSplits = function( laps, searchFunction = searchByAStar){
   ancestry.template = matrix(
     FALSE,
@@ -20,7 +22,9 @@ searchWithSplits = function( laps, searchFunction = searchByAStar){
   return ( list( scores = scores, ancestries = ancestries ) )
 }
 
-# This version is a variation on A* search
+#' Search for a reporter's best network
+#' 
+#' This version is a variation on A* search
 searchByAStar = function( laps, reporterIndex ){
   
   n = howManyActors( laps )
@@ -86,7 +90,7 @@ searchByAStar = function( laps, reporterIndex ){
   return ( list( score = score, ancestry = ancestry ) )
 }
 
-# The heuristic + score for A*
+#' The heuristic + score for A*
 getHeuristicScore = function ( laps, reporterIndex, depth, adjacency ){
   
   n = nrow( adjacency )
@@ -154,6 +158,7 @@ getHeuristicScore = function ( laps, reporterIndex, depth, adjacency ){
   return ( score )
 }
 
+#' Derive ancestry from uncertain adjacency
 deriveAncestry = function ( adjacency, uncertain ){
   # Derives an ancestry from a partially uncertain adjacency matrix
   

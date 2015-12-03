@@ -7,3 +7,4 @@ Author: Yuriy Sverchkov
 Maintainer: yuriy Sverchkov <yuriy.sverchkov@wisc.edu>
 Description: Machine Learning of Biological Interaction Networks
 License: Apache 2.0
+RoxygenNote: 5.0.1

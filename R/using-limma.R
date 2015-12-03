@@ -75,9 +75,10 @@ setMethod(f= "howManyReporters",
           signature = "LimmaLogProbs",
           definition = function(theObject) theObject@nReporters )
 
-# Use limma to get lprobs.
-# Starting point is having a 'fit' (before contrasts).
-# Automatically build contrasts and run the right models.
+#' Use limma to get lprobs.
+#' 
+#' Starting point is having a 'fit' (before contrasts).
+#' Automatically build contrasts and run the right models.
 makeLimmaLogProbs = function(
   fit,
   actors,
@@ -163,6 +164,7 @@ makeLimmaLogProbs = function(
   )
 }
 
+#' Make a contrast matrix
 mkContrastMatrix = function( single.genes, double.specs, wt.str, the.colnames ){
   
   n.1le = length(single.genes)
@@ -254,10 +256,12 @@ setMethod("+", signature(e1 = "LimmaLogProbs", e2 = "LimmaLogProbs"), function (
   ) )
 })
 
+#' Combine posteriors
 combinePosteriors = function( p1, p2, prior ){
   lprob.from.lods( lprob2lods( p1 ) + lprob2lods( p2 ) - log(prior/(1-prior)) )
 }
 
+#' Clean up a limma logprobs
 cleanUpLLP = function ( llp ){
   for ( gene1 in names( llp@doubleVsingle ) )
     for ( gene2 in names( llp@doubleVsingle[[gene1]] ) )
