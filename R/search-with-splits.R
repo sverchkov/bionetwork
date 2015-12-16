@@ -136,7 +136,7 @@ whichLastMax = function ( x ){
 #' 
 #' @param a vector of numbers
 #' @return the index of a (non-uniformly) random maximal element
-whichRandomLateMax = function ( x, p = 2/3 ){
+whichRandomLateMax = function ( x, p = 0.9 ){
   z = which( x == max( x ) )
   i = length(z)
   while( sample( x = c( TRUE, FALSE ), size = 1, prob = c( 1-p, p ) ) && i > 1 ){

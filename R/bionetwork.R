@@ -527,7 +527,7 @@ ancestries2graph = function(
   #names( rList ) = reporters
   # The pointers will point into the list-of-lists where you have
   # each actor represented by a list of versions, defined by the actor's ancestry
-  aList = NULL # as.list( rep( NULL, n) )
+  aList = list()
   #names( aList ) = actors
   
   for ( r in 1:nReporters ){
@@ -545,20 +545,28 @@ ancestries2graph = function(
     # representing the multiple parent versions.
     pointers = matrix(nrow=0,ncol=2)
     colnames(pointers) = c("gene","version")
+    #print( parents )
     for ( parent in which( parents == TRUE ) ){
+      actorDescriptor = NULL
+      if ( length( aList ) >= parent ){
+        actorDescriptor = aList[[parent]]
+      }
+      
       # Try to find parent in aList
       # First get the identifying ancestry matrix for parent
       parent.ancestry = ancestries[1:n,1:n,r]
       parent.ancestry[,!ancestries[,parent,r]] = FALSE
       # Then compare it to every identifying matrix in aList
       ver = 1
-      for ( item in aList[[ parent ]] ){
+      for ( item in actorDescriptor ){
         if ( all( item == parent.ancestry ) )
           break
         ver = ver + 1
       }
-      if ( ver > length( aList[[ parent ]] ) )
-        aList[[parent]][[ver]] = parent.ancestry
+      if ( ver > length( actorDescriptor ) )
+        actorDescriptor[[ver]] = parent.ancestry
+      
+      aList[[parent]] = actorDescriptor
       
       pointers = rbind(pointers,c(parent,ver))
     }
@@ -578,7 +586,10 @@ ancestries2graph = function(
           # Try and find the right version
           v2 = 1
           for ( prof in aList[[ancestor]] ){
-            if ( all( prof[,prof[,ancestor]] == ancestry[,ancestry[,ancestor]] ) )
+            profile_vector = prof[,prof[,ancestor]]
+            ancestry_vector = ancestry[,ancestry[,ancestor]]
+            if ( length( profile_vector ) == length( ancestry_vector ) &&
+                 all( profile_vector == ancestry_vector ) )
               break
             v2 = v2 + 1
           }
