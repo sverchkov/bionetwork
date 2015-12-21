@@ -19,7 +19,9 @@ setGeneric(name = "getReporters",
            { standardGeneric("getReporters") } )
 setGeneric(name = "howManyActors",
            def = function(theObject)
-           { standardGeneric("howManyActors") } )
+           { length( getActors( theObject ) ) } )
 setGeneric(name = "howManyReporters",
            def = function(theObject)
-           { standardGeneric("howManyReporters") } )
+           { length( getReporters( theObject ) ) } )
+
+# We're going to define another interface for the new likelihood-based object
