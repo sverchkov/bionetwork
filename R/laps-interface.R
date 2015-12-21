@@ -24,4 +24,16 @@ setGeneric(name = "howManyReporters",
            def = function(theObject)
            { length( getReporters( theObject ) ) } )
 
-# We're going to define another interface for the new likelihood-based object
+# These were added with the new likelihood-based object
+setGeneric( name = "nonAncestryScoreMatrix",
+          , def = function ( theObject, actorVector ) {
+            standardGeneric( "nonAncestryScoreMatrix")
+          } )
+setGeneric( name = "scoreSingleAncestor"
+          , def = function ( theObject, ancestor, nonancestor ) {
+            standardGeneric( "scoreSingleAncestor" )
+          } )
+setGeneric( name = "scoreNeitherAncestor"
+            , def = function ( theObject, actor1, actor2 ) {
+              standardGeneric( "scoreNeitherAncestor" )
+            } )

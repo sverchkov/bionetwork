@@ -28,7 +28,7 @@ setMethod(f = "getLLGivenDifferent",
           signature( theObject = "LocalLogLikelihoods", actor = "character" ),
           definition = function ( theObject, actor ) theObject@difLogLik[, actor ] )
 
-setMethod(f = "getLLGivenEqual",
+setMethod(f = "getLLGivenEqual2",
           signature( theObject = "LocalLogLikelihoods", double1 = "character", double2 = "character", single = "character" ),
           definition = function ( theObject, double1, double2, single ){
             if ( !( ( str = paste0( double1, double2, '-', single ) ) %in% colnames( eqLogLik ) ) &&
@@ -38,7 +38,7 @@ setMethod(f = "getLLGivenEqual",
               theObject@eqLogLik[, str ]
           } )
 
-setMethod(f = "getLLGivenDifferent",
+setMethod(f = "getLLGivenDifferent2",
           signature( theObject = "LocalLogLikelihoods", double1 = "character", double2 = "character", single = "character" ),
           definition = function ( theObject, double1, double2, single ){
             if ( !( ( str = paste0( double1, double2, '-', single ) ) %in% colnames( eqLogLik ) ) &&

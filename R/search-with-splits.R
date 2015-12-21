@@ -164,7 +164,87 @@ getUncertaintyMatrix = function ( depth = 0, n, m = n ){
 }
 
 #' The heuristic + score for A*
-getHeuristicScore = function ( laps, reporterIndex, depth, adjacency ){
+#' This one uses the log-likelihood interface
+getHeuristicScore = function ( lll, reporterIndex, depth, adjacency ){
+  
+  n = nrow( adjacency )
+  acotrs = getActors( lll )
+  
+  # Mark certain/free edges in adjacency matrix.
+  uncertain = getUncertaintyMatrix( depth, n, n+1 )
+  
+  #print( uncertain )
+  
+  # Derive ancestry
+  ancestral = deriveAncestry( adjacency, uncertain )
+  uncertain = ancestral$uncertain
+  ancestry = ancestral$ancestry
+  
+  # For debugging  
+  #print( showUncertainAncestry( ancestry, uncertain ) )
+  
+  # Score
+  
+  # Simple ancestry component.
+  score =
+    # Certain ancestors
+    sum( ancestryScoreMatrix( lll )[ ancestry[, n + 1 ] & !uncertain[, n + 1 ], reporterIndex], na.rm = TRUE ) +
+    # Certain non-ancestors
+    sum( nonAncestryScoreMatrix( lll )[ !ancestry[, n + 1 ] & !uncertain[, n + 1 ], reporterIndex ], na.rm = TRUE ) +
+    # Uncertain
+    sum( mapply(
+      max,
+      ancestryScoreMatrix( lll )[ uncertain[, n + 1 ], reporterIndex ],
+      nonAncestryScoreMatrix( lll )[ uncertain[, n + 1 ], reporterIndex ] ), na.rm = TRUE )
+  
+  # 2le KO component:
+  for( a in 2:n ){
+    for ( b in 1:a ){
+      rel.score = c(
+        # Neither ancestor score
+        neither = scoreNeitherAncestor( lll, actors(a), actors(b) )[ reporterIndex ],
+        # Only A ancestor score
+        only.a = scoreSingleAncestor( lll, actors(a), actors(b) )[ reporterIndex ],
+        # Only B ancestor score
+        only.b = scoreSingleAncestor( lll, actors(b), actors(a) )[ reporterIndex ],
+        # Both, independent pathway score
+        independent = scoreIndependentPathways( lll, actors(a), actors(b) )[ reporterIndex ],
+        # Both, shared pathway score
+        shared = scoreSharedPathways( lll, actors(a), actors(b) )[ reporterIndex ] )
+      
+      # Now go through the cases
+      if ( !uncertain[ a, n + 1 ] ){ # Only certain relations eliminate cases
+        if ( ancestry[ a, n + 1 ] ) { # a is ancestor
+          rel.score[ "only.b", "neither" ] = -Inf
+        } else {
+          rel.score[ "only.a", "independent", "shared" ] = -Inf
+        }
+      }
+      if ( !uncertain[ b, n + 1 ] ){
+        if ( ancestry[ b, n + 1 ] ){ # b is ancestor
+          rel.score[ "only.a", "neither" ] = -Inf
+        } else { # b is not ancestor
+          rel.score[ "only.b", "independent", "shared" ] = -Inf
+        }
+      }
+      if ( ( !uncertain[ a, b ] && ancestry[ a, b ] ) || ( !uncertain[ b, a ] && ancestry[ b, a ] ) ) {
+        rel.score[ "independent" ] = -Inf
+      } else if ( !uncertain[ a, b ] && !uncertain[ b, a ] && !ancestry[ a, b ] && !ancestry[ b, a ] ) {
+        rel.score[ "shared" ] = -Inf
+      }
+      
+      score = score + max( rel.score )
+    }
+  }
+  
+  # For debugging
+  #print( score )
+  
+  return ( score )
+}
+
+#' The heuristic + score for A*
+getHeuristicScoreOld = function ( laps, reporterIndex, depth, adjacency ){
   
   n = nrow( adjacency )
   
