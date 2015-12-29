@@ -1,6 +1,7 @@
 # laps-interface.R
 # Defines the R4 "interface" for the local ancestry probability scores
 # I'm guessing in R the interface is just generics.
+#' @export scoreIndependentPathways scoreSharedPathways ancestryScoreMatrix getActors getReporters howManyActors howManyReporters nonAncestryScoreMatrix scoreSingleAncestor scoreNeitherAncestor
 
 setGeneric(name = "scoreIndependentPathways",
            def = function(theObject, actor1, actor2)
@@ -25,8 +26,8 @@ setGeneric(name = "howManyReporters",
            { length( getReporters( theObject ) ) } )
 
 # These were added with the new likelihood-based object
-setGeneric( name = "nonAncestryScoreMatrix",
-          , def = function ( theObject, actorVector ) {
+setGeneric( name = "nonAncestryScoreMatrix"
+          , def = function ( theObject ) {
             standardGeneric( "nonAncestryScoreMatrix")
           } )
 setGeneric( name = "scoreSingleAncestor"
