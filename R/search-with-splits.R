@@ -85,9 +85,9 @@ searchByAStar = function( laps, reporterIndex, searchSelection = whichLastMax ){
     # Figure out our next edge toggle
     toggle.point = which( cbind( diag( n ) == 0, TRUE ) )[ n^2 - state$depth ]
     
-    # Compute "edge present"
+    # Compute "edge absent"
     new.adjacency = state$adjacency
-    new.adjacency[ toggle.point ] = TRUE
+    new.adjacency[ toggle.point ] = FALSE
     new.state = list( depth = state$depth + 1, adjacency = new.adjacency )
     # pruning and scoring
     if( -Inf < ( new.score = getHeuristicScore( laps,
@@ -101,7 +101,7 @@ searchByAStar = function( laps, reporterIndex, searchSelection = whichLastMax ){
     }
     
     # Compute "edge absent"
-    new.adjacency[ toggle.point ] = FALSE
+    new.adjacency[ toggle.point ] = TRUE
     new.state = list( depth = state$depth + 1, adjacency = new.adjacency )
     # "push" new state in.
     if( -Inf < ( new.score = getHeuristicScore( laps,
