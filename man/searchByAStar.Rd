@@ -4,7 +4,16 @@
 \alias{searchByAStar}
 \title{Search for a reporter's best network}
 \usage{
-searchByAStar(laps, reporterIndex)
+searchByAStar(laps, reporterIndex, searchSelection = whichLastMax)
+}
+\arguments{
+\item{laps}{the Local Ancestry Probablity Score object}
+
+\item{reporterIndex}{the index of the reporter for which we're building the network}
+
+\item{searchSelection}{function determining the search order, by default using lastMax,
+which corresponds to DFS A*. An interesting alternative is choosing a random max,
+choosing the first max will yield the abysmally slow BFS A*.}
 }
 \description{
 This version is a variation on A* search

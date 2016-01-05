@@ -124,6 +124,7 @@ searchByAStar = function( laps, reporterIndex, searchSelection = whichLastMax ){
 #' 
 #' @param a vector of numbers
 #' @return the index of the last maximal element
+#' @export
 whichLastMax = function ( x ){
   z = which( x == max( x ) )
   z[length(z)]
@@ -138,6 +139,7 @@ whichLastMax = function ( x ){
 #' 
 #' @param a vector of numbers
 #' @return the index of a (non-uniformly) random maximal element
+#' @export
 whichRandomLateMax = function ( x, p = 0.9 ){
   z = which( x == max( x ) )
   i = length(z)

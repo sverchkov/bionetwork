@@ -2,11 +2,13 @@
 % Please edit documentation in R/search-with-splits.R
 \name{getHeuristicScore}
 \alias{getHeuristicScore}
-\title{The heuristic + score for A*}
+\title{The heuristic + score for A*
+This one uses the log-likelihood interface}
 \usage{
-getHeuristicScore(laps, reporterIndex, depth, adjacency)
+getHeuristicScore(lll, reporterIndex, depth, adjacency)
 }
 \description{
 The heuristic + score for A*
+This one uses the log-likelihood interface
 }
 
