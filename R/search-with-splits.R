@@ -369,3 +369,13 @@ showUncertainAncestry = function ( ancestry, uncertainty ){
   result[ !ancestry & !uncertainty ] = 'F'
   return ( result )
 }
+
+#' Clean up a single-reporter ancestry
+#' 
+#' Remove ancestry relationships among non-ancestors of the reporter
+#' @param ancestry the ancestry matrix
+#' @return cleaned up ancestry matrix
+cleanUpAncestry = function ( ancestry ){
+  ancestry[, ncol( ancestry ) ] = (1 == diag( nrow = nrow(ancestry), ncol = ncol(ancestry) ) )
+  return ( ancestry )
+}
