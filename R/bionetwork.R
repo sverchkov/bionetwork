@@ -744,6 +744,3 @@ score.edge.toggles.old <- function( network, lprobs, score=score.network(network
   }
   return(toggle.scores)
 }
-
-#' Making a logic vector
-logicVector = function( n = 1, i = 1 ) c(rep(FALSE,i-1),TRUE,rep(FALSE,n-i))

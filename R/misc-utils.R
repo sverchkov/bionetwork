@@ -86,3 +86,10 @@ replaceNAs = function ( x, replacement = 0 ) {
   y[ is.na( x ) ] = replacement
   y
 }
+
+#' Make a logic vector
+#' 
+#' Makes a vector of a cetain length with a true value in a certain position (remainder false)
+#' @param n vector length
+#' @param i the position of the true value
+logicVector = function( n = 1, i = 1 ) c(rep(FALSE,i-1),TRUE,rep(FALSE,n-i))
