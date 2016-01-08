@@ -29,7 +29,7 @@ aggregateAncestries = function ( ancestries ){
   # An indexing system to keep track of actor copies
   actor.versions = list();
   for ( i in 1:nA ){
-    actor.versions[[ actors[i] ]]$array = array( dims = c( nA, nA, 0 ), dimnames = list( actors, actors, vector() ) )
+    actor.versions[[ actors[i] ]]$array = array( dim = c( nA, nA, 0 ), dimnames = list( actors, actors, vector() ) )
     actor.versions[[ actors[i] ]]$indeces = vector( mode = "numeric" )
   }
 
@@ -47,12 +47,13 @@ aggregateAncestries = function ( ancestries ){
       
       # Add if it is already in the version list
       version.matrix = actor.versions[[ actor ]]$array
-      
-      if ( length( version.matrix ) < 1 || !any( apply( version.matrix == actor.ancestors, 3, all ) ) ) {
+
+      # The c around actor.anestors is a workaround around a non-comformable-arrays error      
+      if ( length( version.matrix ) < 1 || !any( apply( version.matrix == c( actor.ancestors ), 3, all ) ) ) {
         version.matrix = abind::abind( version.matrix, actor.ancestors, along = 3 )
         actor.versions[[ actor ]]$array = version.matrix
         numberOfActorNodes = numberOfActorNodes + 1
-        actor.versions[[ actor ]]$indeces = c( actor.version[[ actor ]]$indeces, numberOfActorNodes )
+        actor.versions[[ actor ]]$indeces = c( actor.versions[[ actor ]]$indeces, numberOfActorNodes )
       }
     }
   }
@@ -86,7 +87,7 @@ aggregateAncestries = function ( ancestries ){
       actor.ancestors[, ! ancestries[, actor, reporter ] ] = FALSE
       
       # Get the actor index
-      i = actor.versions[[ actor ]]$indeces[ which( apply( actor.versions[[ actor ]]$array == actor.ancestors, 3, all ) ) ]
+      i = actor.versions[[ actor ]]$indeces[ which( apply( actor.versions[[ actor ]]$array == c(actor.ancestors), 3, all ) ) ]
       
       result.ancestry[ i, reporter ] = TRUE
       
@@ -96,7 +97,7 @@ aggregateAncestries = function ( ancestries ){
         ancestor.ancestors[, ! ancestries[, ancestor, reporter ] ] = FALSE
         
         # Get the ancestor index
-        j = actor.versions[[ ancestor ]]$indeces[ which( apply( actor.versions[[ ancestor ]]$array == ancestor.ancestors, 3, all ) ) ]
+        j = actor.versions[[ ancestor ]]$indeces[ which( apply( actor.versions[[ ancestor ]]$array == c(ancestor.ancestors), 3, all ) ) ]
         result.ancestry[ j, i ] = TRUE
       }
     }
