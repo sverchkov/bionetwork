@@ -91,15 +91,11 @@ aggregateAncestries = function ( ancestries ){
       
       result.ancestry[ i, reporter ] = TRUE
       
-<<<<<<< HEAD
-      for ( ancestor in actors[ actor.ancestors ] ){
-=======
       for ( ancestor in actors[ ancestries[, actor, reporter ] ] ){
 
         ancestor.ancestors = ancestries[, 1:nA, reporter]
         ancestor.ancestors[, ! ancestries[, ancestor, reporter ] ] = FALSE
->>>>>>> 3edfe453cc2332941f1e250dd48158b9097d8ea7
-        
+
         # Get the ancestor index
         j = actor.versions[[ ancestor ]]$indeces[ which( apply( actor.versions[[ ancestor ]]$array == c(ancestor.ancestors), 3, all ) ) ]
         result.ancestry[ j, i ] = TRUE
