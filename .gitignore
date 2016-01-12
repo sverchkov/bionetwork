@@ -13,3 +13,9 @@
 vignettes/*.html
 vignettes/*.pdf
 .Rproj.user
+
+# workspace autosave
+.RData
+
+# Mac-specific
+.DS_Store
