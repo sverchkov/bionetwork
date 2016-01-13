@@ -9,6 +9,11 @@
 #' 
 #' Finds the maximum-scoring network with arcs to reporters for a fixed actor network
 #' using ancestries.
+#' @param lll The LocalLogLikelihoods object
+#' @param actor.ancestry The actor ancestry
+#' @param debug.statements Whetehr debug statements should be printed
+#' @return an ancestry where all reporters are attached and the associated score
+#' @export
 attachReporters = function(
   lll,
   actor.ancestry,
@@ -23,8 +28,8 @@ attachReporters = function(
   # Actor list
   actor.list = rownames( actor.ancestry )
   
-  # Ensure square adjacency.
-  actor.adjacency = actor.adjacency[nA,nA]
+  # Ensure square ancestry.
+  actor.ancestry = actor.ancestry[1:nA,1:nA]
   
   if ( debug.statements ){# Debug statements!
     print("Getting best reporter configuration for the following actor network:")
@@ -33,7 +38,7 @@ attachReporters = function(
   
   # Keep track of best contribution to score from each reporter
   score.contributions = rep( -Inf, nR )
-  reporter.ancestries = matrix( FALSE, nrow = nA, ncol = nR )
+  reporter.ancestries = matrix( FALSE, nrow = nA, ncol = nR, dimnames = list( actor.list, getReporters( lll ) ) )
   
   # Keep track of seen ancestries
   ancestry.history = matrix( nrow = nA, ncol = 0)
@@ -43,20 +48,23 @@ attachReporters = function(
     for ( actors in combn( actor.list, n, simplify = FALSE ) ){
       
       # Get full ancestry for this reporter combination
-      ancestry = apply( as.matrix( actorAncestry[, actors ] ), 1, any )
+      ancestry = apply( as.matrix( actor.ancestry[, actors ] ), 1, any )
       if (
-        !any( duplicated( stripDots( ancestry ) ) ) &&
-        ( dim(ancestryHistory)[2] < 1 ||
-        !any( apply( as.matrix( ancestry == ancestryHistory ), 2, all ) ) )
+        !any( duplicated( stripDots( actor.list[ ancestry ] ) ) ) &&
+        ( dim(ancestry.history)[2] < 1 ||
+        !any( apply( as.matrix( ancestry == ancestry.history ), 2, all ) ) )
       ){
-        ancestryHistory = cbind( ancestryHistory, ancestry )
+        ancestry.history = cbind( ancestry.history, ancestry )
         
         # Get log-likelihood contribution for each reporter
         contributions = scoreLikelihoodsPerReporter(
-          cbind( actor.ancestry, matrix(
-            rep( ancestry, nR ), nA, nR ),
-            dimnames = list( actor.list, getReporters( lll ) ) ),
-          lll )
+          cbind( actor.ancestry,
+                 matrix( rep( ancestry, nR ), nA, nR,
+                         dimnames =
+                           list( actor.list,
+                                 getReporters( lll ) )
+                         )
+                 ), lll )
         
         winners = contributions > score.contributions
         if( any( winners ) ){
@@ -86,5 +94,5 @@ attachReporters = function(
 #' @param strings - the original string array
 #' @return strings with everything after the first dot (inclusive) stripped
 stripDots = function ( strings ){
-  sapply( strsplit( strings, ".", fixed ), function ( x ) x[1] )
+  sapply( strsplit( strings, ".", fixed = TRUE ), function ( x ) x[1] )
 }

@@ -6,6 +6,16 @@
 \usage{
 attachReporters(lll, actor.ancestry, debug.statements = FALSE)
 }
+\arguments{
+\item{lll}{The LocalLogLikelihoods object}
+
+\item{actor.ancestry}{The actor ancestry}
+
+\item{debug.statements}{Whetehr debug statements should be printed}
+}
+\value{
+an ancestry where all reporters are attached and the associated score
+}
 \description{
 Finds the maximum-scoring network with arcs to reporters for a fixed actor network
 using ancestries.

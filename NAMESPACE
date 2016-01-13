@@ -3,6 +3,7 @@
 export(LocalLogLikelihoods)
 export(aggregateAncestries)
 export(ancestryScoreMatrix)
+export(attachReporters)
 export(getActors)
 export(getReporters)
 export(howManyActors)

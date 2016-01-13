@@ -28,6 +28,10 @@ scoreLikelihoodsPerReporter = function ( ancestry, lll ) {
   simple.ancestry.scores = ancestryScoreMatrix( lll )
   simple.ancestry.scores[ non.ancestors ] = nonAncestryScoreMatrix( lll )[ non.ancestors ]
   
+  # Clean NAs
+  simple.ancestry.scores[ is.na( simple.ancestry.scores ) ] = 0
+  
+  # Get scores
   scores = colSums( simple.ancestry.scores )
   
   # Scoring 2le KOs requires some special care. For "neither ancestor" we need to make
@@ -42,7 +46,7 @@ scoreLikelihoodsPerReporter = function ( ancestry, lll ) {
         ancestry[ stripDots( actor.list ) %in% unique.actors[ c(a,b) ],
                   nA + ( 1:nR ) ],
         2, any )
-      scores[ selected.reporters ] = scores[ selected.reporters ] + scoreNeitherAncestor( lll, unique.actors[ a ], unique.actors[ b ] )[ selected.reporters ]
+      scores[ selected.reporters ] = scores[ selected.reporters ] + replaceNAs( scoreNeitherAncestor( lll, unique.actors[ a ], unique.actors[ b ] )[ selected.reporters ] )
     }
   }
   
@@ -61,18 +65,18 @@ scoreLikelihoodsPerReporter = function ( ancestry, lll ) {
       both = ancestry[ a, nA + (1:nR) ] & ancestry[ b, nA + (1:nR) ]
       
       # Only A ancestor score
-      scores[ only.a ] = scores[ only.a ] + scoreSingleAncestor( lll, actor.a.unique, actor.b.unique )[ only.a ]
+      scores[ only.a ] = scores[ only.a ] + replaceNAs( scoreSingleAncestor( lll, actor.a.unique, actor.b.unique )[ only.a ] )
       # Only B ancestor score
-      scores[ only.b ] = scores[ only.b ] + scoreSingleAncestor( lll, actor.b.unique, actor.a.unique )[ only.b ]
+      scores[ only.b ] = scores[ only.b ] + replaceNAs( scoreSingleAncestor( lll, actor.b.unique, actor.a.unique )[ only.b ] )
       # Both
-      scores[ both ] = scores[ both ] +
+      scores[ both ] = scores[ both ] + replaceNAs(
         if ( ancestry[ a, b ] || ancestry[ b, a ] ){
           # Shared pathway score
           scoreSharedPathways( lll, actor.a.unique, actor.b.unique )[ both ]
         } else {
           # Independent pathway score
           scoreIndependentPathways( lll, actor.a.unique, actor.b.unique )[ both ]
-        }
+        } )
     }
   }
       
