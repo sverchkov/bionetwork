@@ -168,6 +168,88 @@ getHeuristicScore = function ( lll, reporterIndex, depth, adjacency ){
   return ( score )
 }
 
+#' Score bounds for underdetermined graph
+#'
+#' Computes the score bounds for an underdetermined graph described by two matrices,
+#' possible.ancestors and possible.nonancestors. These describe ancestry relationships
+#' derived from a graph with present, absent, and undetermined edges.
+#' The number of reporters in the result matrix is based on the number of reporters in
+#' the input ancestry matrices. It is assumed that the input matrices have the same
+#' dimensions.
+#'
+#' @param lll - The LocalLogLikelihoods object
+#' @param possible.ancestors - boolean matrix indicating possible ancestors
+#' @param possible.nonancestors - boolean matrix indicating possible nonancestors
+#' @return A 2x|reporters| matrix, with the top row indicating upper and the bottom row indicating lower bounds on the score.
+getScoreBounds = function ( lll, possible.ancestors, possible.nonancestors ){
+  
+  # Init block: get actors, reporters, dimensions.
+  actors = rownames( possible.ancestors )
+  n = length( actors )
+  if ( nrow( possible.nonancestors ) != n )
+    stop( "possible.ancestors and possible.nonancestors have different numbers of rows!" )
+  reporters = colnames( possible.ancestors )[-(1:n)]
+  nR = length( reporters )
+  
+  # Score
+  score = matrix( nrow = 2, ncol = nR, dimnames = list( c( "upper", "lower" ), reporter ) )
+  
+  # Simple ancestry component.
+  simple.ancestry.scores = abind::abind( ancestryScoreMatrix( lll )[actors,reporters], nonAncestryScoreMatrix( lll )[actors,reporters], along = 3 )
+  simple.ancestry.scores[,,1][ !possible.ancestors[ n+(1:nR) ] ] = NA
+  simple.ancestry.scores[,,2][ !possible.nonancestors[ n+(1:nR) ] ] = NA
+  score[,"upper"] = colSums( apply( simple.ancestry.scores, 1:2, max, na.rm = TRUE ) )
+  score[,"lower"] = colSums( apply( simple.ancestry.scores, 1:2, min, na.rm = TRUE ) )
+  
+  # 2le KO component:
+  for( a in 2:n ){
+    for ( b in 1:a ){
+      rel.score = c(
+        # Neither ancestor score
+        neither = scoreNeitherAncestor( lll, actors[a], actors[b] )[ reporters ],
+        # Only A ancestor score
+        only.a = scoreSingleAncestor( lll, actors[a], actors[b] )[ reporters ],
+        # Only B ancestor score
+        only.b = scoreSingleAncestor( lll, actors[b], actors[a] )[ reporters ],
+        # Both, independent pathway score
+        independent = scoreIndependentPathways( lll, actors[a], actors[b] )[ reporters ],
+        # Both, shared pathway score
+        shared = scoreSharedPathways( lll, actors[a], actors[b] )[ reporters ] )
+      
+      # Sorta hacky
+      rel.score[ is.na( rel.score ) ] = 0
+      
+      # Now go through the cases
+      if ( !uncertain[ a, n + 1 ] ){ # Only certain relations eliminate cases
+        if ( ancestry[ a, n + 1 ] ) { # a is ancestor
+          rel.score[ c( "only.b", "neither" ) ] = -Inf
+        } else {
+          rel.score[ c( "only.a", "independent", "shared" ) ] = -Inf
+        }
+      }
+      if ( !uncertain[ b, n + 1 ] ){
+        if ( ancestry[ b, n + 1 ] ){ # b is ancestor
+          rel.score[ c( "only.a", "neither" ) ] = -Inf
+        } else { # b is not ancestor
+          rel.score[ c( "only.b", "independent", "shared" ) ] = -Inf
+        }
+      }
+      if ( ( !uncertain[ a, b ] && ancestry[ a, b ] ) || ( !uncertain[ b, a ] && ancestry[ b, a ] ) ) {
+        rel.score[ "independent" ] = -Inf
+      } else if ( !uncertain[ a, b ] && !uncertain[ b, a ] && !ancestry[ a, b ] && !ancestry[ b, a ] ) {
+        rel.score[ "shared" ] = -Inf
+      }
+      
+      score = score + max( rel.score )
+    }
+  }
+  
+  # For debugging
+  #print( score )
+  
+  return ( score )
+}
+
 #' The heuristic + score for A*
 getHeuristicScoreOld = function ( laps, reporterIndex, depth, adjacency ){
   
