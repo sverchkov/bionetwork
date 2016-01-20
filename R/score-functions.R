@@ -192,10 +192,10 @@ getScoreBounds = function ( lll, possible.ancestors, possible.nonancestors ){
   nR = length( reporters )
   
   # Score
-  score = matrix( nrow = 2, ncol = nR, dimnames = list( c( "upper", "lower" ), reporter ) )
+  score = matrix( nrow = 2, ncol = nR, dimnames = list( c( "upper", "lower" ), reporters ) )
   
   # Simple ancestry component.
-  simple.ancestry.scores = abind::abind( ancestryScoreMatrix( lll )[actors,reporters], nonAncestryScoreMatrix( lll )[actors,reporters], along = 3 )
+  simple.ancestry.scores = replaceNAs( abind::abind( ancestryScoreMatrix( lll )[actors,reporters], nonAncestryScoreMatrix( lll )[actors,reporters], along = 3 ) )
   simple.ancestry.scores[,,1][ !possible.ancestors[ n+(1:nR) ] ] = NA
   simple.ancestry.scores[,,2][ !possible.nonancestors[ n+(1:nR) ] ] = NA
   score["upper",] = colSums( apply( simple.ancestry.scores, 1:2, max, na.rm = TRUE ) )
@@ -204,7 +204,7 @@ getScoreBounds = function ( lll, possible.ancestors, possible.nonancestors ){
   # 2le KO component:
   for( a in 2:n ){
     for ( b in 1:a ){
-      rel.score = matrix( c(
+      rel.score = replaceNAs( matrix( c(
           # Neither ancestor score
           scoreNeitherAncestor( lll, actors[a], actors[b] )[ reporters ],
           # Only A ancestor score
@@ -216,7 +216,7 @@ getScoreBounds = function ( lll, possible.ancestors, possible.nonancestors ){
           # Both, shared pathway score
           scoreSharedPathways( lll, actors[a], actors[b] )[ reporters ]
         ), ncol = nR, nrow = 5,
-        dimnames = list( "neither", "only.a", "only.b", "independent", "shared" ) )
+        dimnames = list( c( "neither", "only.a", "only.b", "independent", "shared" ) ) ) )
       
       # Now eliminate cases:
       
@@ -235,8 +235,8 @@ getScoreBounds = function ( lll, possible.ancestors, possible.nonancestors ){
       if( !possible.nonancestors[ a, b ] || !possible.ancestors[ b, a ] )
         rel.score[ "independent", ] = NA
 
-      score["upper",] = score["upper",] + apply( rel.score, 2, max )
-      score["lower",] = score["lower",] + apply( rel.score, 2, min )
+      score["upper",] = score["upper",] + apply( rel.score, 2, max, na.rm = TRUE )
+      score["lower",] = score["lower",] + apply( rel.score, 2, min, na.rm = TRUE )
     }
   }
   

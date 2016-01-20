@@ -18,10 +18,10 @@ adjacencyToAncestry = function ( adjacency ){
   while ( any( ancestry != old_ancestry ) ){
     old_ancestry = ancestry
     for ( j in 1:m ){
-      ancestor.row.select = ancestry[,j]
-      if ( n < m ) ancestor.col.select = c( ancestor.col.select, rep( FALSE, m-n ) )
-      if ( n > m ) ancestor.col.select = ancestor.col.select[1:m]
-      ancestry[,j] = apply( ancestry[,ancestor.col.select], 1, any ) & ancestry[,j]
+      anc = as.matrix( ancestry[ which( ancestry[,j] ) ] )
+      if ( any( anc ) ) {
+        ancestry[,j] = apply( anc, 1, any ) & ancestry[,j]
+      }
     }
   }
   

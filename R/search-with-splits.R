@@ -149,24 +149,6 @@ whichRandomLateMax = function ( x, p = 0.9 ){
   z[i]
 }
 
-#' Make uncertainty matrix from depth + dimension
-#' 
-#' @param depth - search depth
-#' @param n - number of rows
-#' @param m - number of columns
-getUncertaintyMatrix = function ( depth = 0, n, m = n ){
-  
-  # Diagonals are never uncertain.
-  uncertain = ( diag( nrow = n, ncol = m ) == 0 )
-  
-  if( depth > 0 ){
-    indeces = which( uncertain )
-    uncertain[ indeces[ length( indeces ) - ( ( depth - 1 ):0 ) ] ] = FALSE
-  }
-  
-  return ( uncertain )
-}
-
 #' Derive ancestry from uncertain adjacency
 deriveAncestry = function ( adjacency, uncertain ){
   # Derives an ancestry from a partially uncertain adjacency matrix
