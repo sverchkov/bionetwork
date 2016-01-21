@@ -10,19 +10,23 @@
 adjacencyToAncestry = function ( adjacency ){
   n = nrow( adjacency ) # Number of rows
   m = ncol( adjacency ) # Number of columns
-  d = min( n, m ) # Diagonal length
+  if ( n > m )
+    stop( "Can't convert adjacency with rows > cols to ancestry!")
   
   ancestry = adjacency # Parents are ancestors
   old_ancestry = matrix( FALSE, n, m )
   
   while ( any( ancestry != old_ancestry ) ){
     old_ancestry = ancestry
-    for ( j in 1:m ){
-      anc = as.matrix( ancestry[ which( ancestry[,j] ) ] )
-      if ( any( anc ) ) {
-        ancestry[,j] = apply( anc, 1, any ) & ancestry[,j]
-      }
-    }
+
+    ancestry = ( 0 != ancestry[1:n,1:n] %*% ancestry )
+    # OLD WAY
+    #for ( j in 1:m ){
+    #  anc = as.matrix( ancestry[ , which( ancesmatritry[,j] ) ] )
+    #  if ( any( anc ) ) {
+    #    ancestry[,j] = apply( anc, 1, any ) & ancestry[,j]
+    #  }
+    #}
   }
   
   # return
