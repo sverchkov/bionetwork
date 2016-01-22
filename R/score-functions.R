@@ -204,39 +204,32 @@ getScoreBounds = function ( lll, possible.ancestors, possible.nonancestors ){
   # 2le KO component:
   for( a in 2:n ){
     for ( b in 1:a ){
-      rel.score = replaceNAs( matrix( c(
-          # Neither ancestor score
-          scoreNeitherAncestor( lll, actors[a], actors[b] )[ reporters ],
-          # Only A ancestor score
-          scoreSingleAncestor( lll, actors[a], actors[b] )[ reporters ],
-          # Only B ancestor score
-          scoreSingleAncestor( lll, actors[b], actors[a] )[ reporters ],
-          # Both, independent pathway score
-          scoreIndependentPathways( lll, actors[a], actors[b] )[ reporters ],
-          # Both, shared pathway score
-          scoreSharedPathways( lll, actors[a], actors[b] )[ reporters ]
-        ), ncol = nR, nrow = 5,
-        dimnames = list( c( "neither", "only.a", "only.b", "independent", "shared" ) ) ) )
+      rel.score = matrix( c( rep( -Inf, nR ), rep( Inf, nR ) ), nrow = 2, ncol = nR,
+                          dimnames = list( c("lower", "upper"), reporters ) )
       
-      # Now eliminate cases:
-      
-      # Cases where a is not an ancestor
-      rel.score[ c( "only.a", "independent", "shared" ), !possible.ancestors[ a, reporters ] ] = NA
-      # Cases where b is not an ancestor
-      rel.score[ c( "only.b", "independent", "shared" ), !possible.ancestors[ b, reporters ] ] = NA
-      # Cases where a is an ancestor
-      rel.score[ c( "only.b", "neither" ), !possible.nonancestors[ a, reporters ] ] = NA
-      # Cases where b is an ancestor
-      rel.score[ c( "only.a", "neither" ), !possible.nonancestors[ b, reporters ] ] = NA
-      # Cases without a shared path
-      if( !possible.ancestors[ a, b ] && !possible.ancestors[ b, a ] )
-        rel.score[ "shared", ] = NA
-      # Cases without an independent path
-      if( !possible.nonancestors[ a, b ] || !possible.ancestors[ b, a ] )
-        rel.score[ "independent", ] = NA
-
-      score["upper",] = score["upper",] + apply( rel.score, 2, max, na.rm = TRUE )
-      score["lower",] = score["lower",] + apply( rel.score, 2, min, na.rm = TRUE )
+      for ( relation in
+            list( list( # Neither ancestor score present when both A and B are possible nonancestors
+                        select = possible.nonancestors[ a, reporters ] & possible.nonancestors[ b, reporters ],
+                        locals = scoreNeitherAncestor( lll, actors[ a ], actors[ b ] )[ reporters ] )
+                , list( # Only A ancestor score present when A is possible ancestor and B possible nonancestor
+                        select = possible.ancestors[ a, reporters ] & possible.nonancestors[ b, reporters ],
+                        locals = scoreSingleAncestor( lll, actors[ a] , actors[ b ] )[ reporters ] )
+                , list( # Only B ancestor score present when B is possible ancestor and A possible nonancestor
+                        select = possible.ancestors[ b, reporters ] & possible.nonancestors[ a, reporters ],
+                        locals = scoreSingleAncestor( lll, actors[ b ], actors[ a ] )[ reporters ] )
+                , list( # Both+independent when A,B possible nonancestors of each other and possible ancestors of R
+                        select = possible.ancestors[ a, reporters ] & possible.ancestors[ a, reporters ] & possible.nonancestors[ a, b ] & possible.nonancestors[ b, a ],
+                        locals = scoreIndependentPathways( lll, actors[ a ], actors[ b ] )[ reporters ] )
+                , list( # Both+shared when A,B have possible ancestry and both possible ancestors of R
+                        select = possible.ancestors[ a, reporters ] & possible.ancestors[ b, reporters ] & ( possible.ancestors[ a, b ] | possible.ancestors[ b, a ] ),
+                        locals = scoreSharedPathways( lll, actors[ a ], actors[ b ] )[ reporters ] )
+            ) ){
+        relation$locals[ is.na( relation$locals) ] = 0
+        rel.score[ "upper", relation$select ] = pmax( rel.score[ "upper", relation$select ],
+                                                      relation$locals[ relation$select ] )
+        rel.score[ "lower", relation$select ] = pmin( rel.score[ "lower", relation$select ],
+                                                      relation$locals[ relation$select ] )
+      }
     }
   }
   
