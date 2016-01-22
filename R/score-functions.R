@@ -180,8 +180,9 @@ getHeuristicScore = function ( lll, reporterIndex, depth, adjacency ){
 #' @param lll - The LocalLogLikelihoods object
 #' @param possible.ancestors - boolean matrix indicating possible ancestors
 #' @param possible.nonancestors - boolean matrix indicating possible nonancestors
+#' @param precomputed.double.rels - precomputed list of lists of relation scores for actor-actor-reporter relations
 #' @return A 2x|reporters| matrix, with the top row indicating upper and the bottom row indicating lower bounds on the score.
-getScoreBounds = function ( lll, possible.ancestors, possible.nonancestors ){
+getScoreBounds = function ( lll, possible.ancestors, possible.nonancestors, precomputed.double.rels = NULL ){
   
   # Init block: get actors, reporters, dimensions.
   actors = rownames( possible.ancestors )
@@ -204,19 +205,23 @@ getScoreBounds = function ( lll, possible.ancestors, possible.nonancestors ){
   # 2le KO component:
   for( a in 2:n ){
     for ( b in 1:a ){
-      rel.score = replaceNAs( matrix( c(
-          # Neither ancestor score
-          scoreNeitherAncestor( lll, actors[a], actors[b] )[ reporters ],
-          # Only A ancestor score
-          scoreSingleAncestor( lll, actors[a], actors[b] )[ reporters ],
-          # Only B ancestor score
-          scoreSingleAncestor( lll, actors[b], actors[a] )[ reporters ],
-          # Both, independent pathway score
-          scoreIndependentPathways( lll, actors[a], actors[b] )[ reporters ],
-          # Both, shared pathway score
-          scoreSharedPathways( lll, actors[a], actors[b] )[ reporters ]
-        ), ncol = nR, nrow = 5,
-        dimnames = list( c( "neither", "only.a", "only.b", "independent", "shared" ) ) ) )
+      rel.score =
+        if( !is.null( precomputed.double.rels ) )
+          precomputed.double.rels[[actors[a]]][[actors[b]]]
+        else
+          replaceNAs( matrix( c(
+            # Neither ancestor score
+            scoreNeitherAncestor( lll, actors[a], actors[b] )[ reporters ],
+            # Only A ancestor score
+            scoreSingleAncestor( lll, actors[a], actors[b] )[ reporters ],
+            # Only B ancestor score
+            scoreSingleAncestor( lll, actors[b], actors[a] )[ reporters ],
+            # Both, independent pathway score
+            scoreIndependentPathways( lll, actors[a], actors[b] )[ reporters ],
+            # Both, shared pathway score
+            scoreSharedPathways( lll, actors[a], actors[b] )[ reporters ]
+            ), ncol = nR, nrow = 5,
+            dimnames = list( c( "neither", "only.a", "only.b", "independent", "shared" ) ) ) )
       
       # Now eliminate cases:
       
@@ -307,4 +312,39 @@ getHeuristicScoreOld = function ( laps, reporterIndex, depth, adjacency ){
   #print( score )
   
   return ( score )
+}
+
+#' Precompute scores of actor-actor-reporter relations
+#' 
+#' Is a list of list of matrices
+#' @param lll the LocalLogLikelihoods object
+#' @param actors the set of actors over which to compute
+#' @param reporters the set of reporters over which to compute
+#' @return a list of lists of matrices where [[ actor ]][[ actor ]][ relation, reporter ] gives the
+#' score for the corresponding relation
+precomputeDoubleRels = function( lll, actors = getActors( lll ), reporters = getReporters( lll ) ){
+  
+  n = length( actors )
+  nR = length( reporters )
+  
+  result = list()
+  
+  for ( a in 2:n ){
+    for ( b in 1: a ){
+      result[[ actors[a] ]][[ actors[b] ]] =
+        replaceNAs( matrix( c(
+          # Neither ancestor score
+          scoreNeitherAncestor( lll, actors[a], actors[b] )[ reporters ],
+          # Only A ancestor score
+          scoreSingleAncestor( lll, actors[a], actors[b] )[ reporters ],
+          # Only B ancestor score
+          scoreSingleAncestor( lll, actors[b], actors[a] )[ reporters ],
+          # Both, independent pathway score
+          scoreIndependentPathways( lll, actors[a], actors[b] )[ reporters ],
+          # Both, shared pathway score
+          scoreSharedPathways( lll, actors[a], actors[b] )[ reporters ]
+        ), ncol = nR, nrow = 5,
+        dimnames = list( c( "neither", "only.a", "only.b", "independent", "shared" ), reporters ) ) )
+    }
+  }
 }

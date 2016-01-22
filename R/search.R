@@ -19,6 +19,8 @@ branchBoundAStarOnTree = function( lll, reporters = getReporters( lll ), searchS
   
   the.dim.names = list( getActors( lll ), c( getActors( lll ), reporters ) )
   
+  precomputed.double.rels = precomputeDoubleRels( lll, getActors( lll ), reporters )
+  
   returned.score = c( -Inf, -Inf )
   adjacency = matrix( FALSE, nrow = n, ncol = n + nR, dimnames = the.dim.names )
   uncertain = ( 1 != diag( nrow = n, ncol = n + nR ) )
@@ -79,7 +81,7 @@ branchBoundAStarOnTree = function( lll, reporters = getReporters( lll ), searchS
       possible.nonancestors = !adjacencyToAncestry( new.state$adjacency & !new.state$uncertain )
       
       # Score
-      new.score = rowSums( getScoreBounds( lll, possible.ancestors, possible.nonancestors ) )
+      new.score = rowSums( getScoreBounds( lll, possible.ancestors, possible.nonancestors, precomputed.double.rels ) )
 
       if( debug.level > 3 ) print( new.score )
       
