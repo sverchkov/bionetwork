@@ -19,7 +19,7 @@ adjacencyToAncestry = function ( adjacency ){
   while ( any( ancestry != old_ancestry ) ){
     old_ancestry = ancestry
 
-    ancestry = ( 0 != ancestry[1:n,1:n] %*% ancestry )
+    ancestry = ancestry | ( ancestry[1:n,1:n] %*% ancestry )
     # OLD WAY
     #for ( j in 1:m ){
     #  anc = as.matrix( ancestry[ , which( ancesmatritry[,j] ) ] )
