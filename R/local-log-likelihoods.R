@@ -64,6 +64,8 @@ setMethod( f = "scoreNeitherAncestor",
 #' Overloaded + operator to merge LocalLogLikelihoods objects
 setMethod( "+", signature( e1 = "LocalLogLikelihoods", e2 = "LocalLogLikelihoods" ), function ( e1, e2 ){
   
+  if ( e1@wt != e2@wt ) stop ( "Incompatible LLL objects: wt's differ." )
+  
   reporters = union( e1@reporters, e2@reporters )
   actors = union( e1@actors, e2@actors )
   columns1 = colnames( e1@eqLogLik )
@@ -83,7 +85,8 @@ setMethod( "+", signature( e1 = "LocalLogLikelihoods", e2 = "LocalLogLikelihoods
   LocalLogLikelihoods( reporters = reporters
                      , actors = actors
                      , difLogLik = difLogLik
-                     , eqLogLik = eqLogLik )  
+                     , eqLogLik = eqLogLik
+                     , wt = e1@wt)  
 })
 
 
@@ -126,7 +129,8 @@ makeLLL = function ( fit, actors, wt = "WT" ){
   LocalLogLikelihoods( reporters = reporters
                      , actors = actors
                      , eqLogLik = lls$equal
-                     , difLogLik = lls$different )
+                     , difLogLik = lls$different
+                     , wt = wt )
 }
 
 #' Function for getting log-likelihoods out of the fit
@@ -143,7 +147,7 @@ getLogLikelihoods = function( fit ){
   lldiff = fit$lods + log(1/fit$proportion - 1) + lleq
   
   # return
-  list( equal = lleq, different = lldiff )
+  list( equal = replaceNAs( lleq ), different = replaceNAs( lldiff ) )
 }
 
 #' Function for accessing a double-KO contrast in a table
@@ -158,5 +162,5 @@ accessTable = function ( table, double1, double2, single ) {
        ( ( refstr = paste0( double2, double1, '-', single ) ) %in% colnames( table ) ) )
     table[, refstr ]
   else
-    NA
+    array( data = 0, dim = nrow( table ), dimnames = list( rownames( table ) ) )
 }

@@ -191,49 +191,66 @@ getScoreBounds = function ( lll, possible.ancestors, possible.nonancestors ){
   reporters = colnames( possible.ancestors )[-(1:n)]
   nR = length( reporters )
   
-  # Score
-  score = matrix( nrow = 2, ncol = nR, dimnames = list( c( "upper", "lower" ), reporters ) )
-  
   # Simple ancestry component.
-  simple.ancestry.scores = replaceNAs( abind::abind( ancestryScoreMatrix( lll )[actors,reporters], nonAncestryScoreMatrix( lll )[actors,reporters], along = 3 ) )
+  simple.ancestry.scores = abind::abind( ancestryScoreMatrix( lll )[actors,reporters], nonAncestryScoreMatrix( lll )[actors,reporters], along = 3 )
   simple.ancestry.scores[,,1][ !possible.ancestors[ n+(1:nR) ] ] = NA
   simple.ancestry.scores[,,2][ !possible.nonancestors[ n+(1:nR) ] ] = NA
-  score["upper",] = colSums( apply( simple.ancestry.scores, 1:2, max, na.rm = TRUE ) )
-  score["lower",] = colSums( apply( simple.ancestry.scores, 1:2, min, na.rm = TRUE ) )
+
+  # Score
+  score = rbind( 
+    "upper" = colSums( apply( simple.ancestry.scores, 1:2, max, na.rm = TRUE ) ),
+    "lower" = colSums( apply( simple.ancestry.scores, 1:2, min, na.rm = TRUE ) ) )
   
   # 2le KO component:
   for( a in 2:n ){
-    for ( b in 1:a ){
-      rel.score = matrix( c( rep( -Inf, nR ), rep( Inf, nR ) ), nrow = 2, ncol = nR,
-                          dimnames = list( c("lower", "upper"), reporters ) )
+    for ( b in 1:(a-1) ){
+      rel.score = matrix( rep( c( -Inf, Inf ), nR ), nrow = 2, ncol = nR,
+                          dimnames = list( c( "upper", "lower" ), reporters ) )
       
-      for ( relation in
-            list( list( # Neither ancestor score present when both A and B are possible nonancestors
-                        select = possible.nonancestors[ a, reporters ] & possible.nonancestors[ b, reporters ],
-                        locals = scoreNeitherAncestor( lll, actors[ a ], actors[ b ] )[ reporters ] )
-                , list( # Only A ancestor score present when A is possible ancestor and B possible nonancestor
-                        select = possible.ancestors[ a, reporters ] & possible.nonancestors[ b, reporters ],
-                        locals = scoreSingleAncestor( lll, actors[ a] , actors[ b ] )[ reporters ] )
-                , list( # Only B ancestor score present when B is possible ancestor and A possible nonancestor
-                        select = possible.ancestors[ b, reporters ] & possible.nonancestors[ a, reporters ],
-                        locals = scoreSingleAncestor( lll, actors[ b ], actors[ a ] )[ reporters ] )
-                , list( # Both+independent when A,B possible nonancestors of each other and possible ancestors of R
-                        select = possible.ancestors[ a, reporters ] & possible.ancestors[ a, reporters ] & possible.nonancestors[ a, b ] & possible.nonancestors[ b, a ],
-                        locals = scoreIndependentPathways( lll, actors[ a ], actors[ b ] )[ reporters ] )
-                , list( # Both+shared when A,B have possible ancestry and both possible ancestors of R
-                        select = possible.ancestors[ a, reporters ] & possible.ancestors[ b, reporters ] & ( possible.ancestors[ a, b ] | possible.ancestors[ b, a ] ),
-                        locals = scoreSharedPathways( lll, actors[ a ], actors[ b ] )[ reporters ] )
-            ) ){
-        relation$locals[ is.na( relation$locals) ] = 0
-        rel.score[ "upper", relation$select ] = pmax( rel.score[ "upper", relation$select ],
-                                                      relation$locals[ relation$select ] )
-        rel.score[ "lower", relation$select ] = pmin( rel.score[ "lower", relation$select ],
-                                                      relation$locals[ relation$select ] )
+      # Neither ancestor score present when both A and B are possible nonancestors
+      select = possible.nonancestors[ a, reporters ] & possible.nonancestors[ b, reporters ]
+      rel.score[ , select ] = updateBounds( rel.score[ , select ],
+                                            scoreNeitherAncestor( lll, actors[ a ], actors[ b ] )[ reporters[ select ] ] )
+      
+      # Only A ancestor score present when A is possible ancestor and B possible nonancestor
+      select = possible.ancestors[ a, reporters ] & possible.nonancestors[ b, reporters ]
+      rel.score[ , select ] = updateBounds( rel.score[ , select ],
+                                            scoreSingleAncestor( lll, actors[ a] , actors[ b ] )[ reporters[ select ] ] )
+
+      # Only B ancestor score present when B is possible ancestor and A possible nonancestor
+      select = possible.ancestors[ b, reporters ] & possible.nonancestors[ a, reporters ]
+      rel.score[ , select ] = updateBounds( rel.score[ , select ],
+                                            scoreSingleAncestor( lll, actors[ b ], actors[ a ] )[ reporters[ select ] ] )
+      
+      # Both+independent when A,B possible nonancestors of each other and possible ancestors of R
+      if ( possible.nonancestors[ a, b ] && possible.nonancestors[ b, a ] ) {
+        select = possible.ancestors[ a, reporters ] & possible.ancestors[ a, reporters ]
+        rel.score[ , select ] = updateBounds( rel.score[ , select ],
+                                              scoreIndependentPathways( lll, actors[ a ], actors[ b ] )[ reporters[ select ] ] )
       }
+      
+      # Both+shared when A,B have possible ancestry and both possible ancestors of R
+      if ( possible.ancestors[ a, b ] || possible.ancestors[ b, a ] ) {
+        select = possible.ancestors[ a, reporters ] & possible.ancestors[ b, reporters ]
+        rel.score[ , select ] = updateBounds( rel.score[ , select ],
+                                              scoreSharedPathways( lll, actors[ a ], actors[ b ] )[ reporters[ select ] ] )
+      }
+      
+      score = score + rel.score
     }
   }
   
   return ( score )
+}
+
+#' Helper for updating upper/lower-bound matrix
+#' 
+#' @param bounds - the bounds matrix
+#' @param scores - vector of score candidates
+#' @return updated bounds where the "upper" is the max of scores+"upper" and "lower" is the min of scores+"lower"
+updateBounds = function ( bounds, scores ) {
+  rbind( "upper" = pmax( bounds[ "upper", ], scores ),
+         "lower" = pmin( bounds[ "lower", ], scores ) )
 }
 
 #' The heuristic + score for A*

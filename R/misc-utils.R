@@ -82,9 +82,8 @@ list2csv = function( lst, file ){
 #' @param replacement - the thing with which to replace zeros
 #' @return version where all NAs were replaced by 0s
 replaceNAs = function ( x, replacement = 0 ) {
-  y = x
-  y[ is.na( x ) ] = replacement
-  y
+  x[ is.na( x ) ] = replacement
+  return ( x )
 }
 
 #' Make a logic vector
