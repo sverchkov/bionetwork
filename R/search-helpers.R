@@ -28,6 +28,7 @@ initSearchNode = function ( lll, reporters = getReporters( lll ) ){
 #' @param uncertain uncertainty matrix
 #' @return a search node (list made up of adjacency, uncertainty, and per-reporter
 #' score vector)
+#' @export
 makeSearchNode = function ( lll, adjacency, uncertain ){
   # Build uncertainty-based ancestry matrices
   possible.ancestors = adjacencyToAncestry( adjacency | uncertain )
@@ -94,4 +95,30 @@ getChildNodes = function ( lll, search.node ) {
   }
   
   result
+}
+
+#' Simple node scorer
+#' 
+#' @param lll the LocalLogLikelihoods object
+#' @param adjacency the adjacency matrix
+#' @export
+scoreSimply = function( lll, adjacency ){
+  # Build ancestry matrices
+  ancestors = adjacencyToAncestry( adjacency )
+  
+  -sum( getScoreBounds( lll, ancestors, !ancestors )["upper",] )
+}
+
+#' Toggle search children
+#' 
+#' Powers an edge-toggling search over adjacency matrices
+#' @param adjacency
+#' @return list of adjacency matrices resulting from toggling an edge
+#' @export
+getChildrenInToggleSearch = function ( adjacency ){
+  n = length( adjacency )
+  
+  lapply( 1:n, function( x ) {
+    xor( adjacency, logicVector( n, x ) )
+  } )
 }
