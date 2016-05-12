@@ -74,13 +74,39 @@ getCost = function ( search.node ) {
      "lower" = -sum( search.node$bound.vector["upper", ] ) )
 }
 
-#' Get children in the search graph
+#' Get children in the search graph (wide version)
 #' 
 #' @param lll the LocalLogLikelihoods object
 #' @param search.node the search node whose children we're generating
 #' @return a list of search nodes (the children)
 #' @export
-getChildNodes = function ( lll, search.node ) {
+getChildNodesWide = function ( lll, search.node ) {
+  c(
+    lapply( which( search.node$uncertain ), function( index ) {
+      uncertain = search.node$uncertain
+      uncertain[ index ] = FALSE
+      adjacency = search.node$adjacency
+      adjacency[ index ] = FALSE
+      makeSearchNode( lll=lll, adjacency=adjacency, uncertain=uncertain )
+    } ),
+    lapply( which( search.node$uncertain ), function( index ) {
+      uncertain = search.node$uncertain
+      uncertain[ index ] = FALSE
+      adjacency = search.node$adjacency
+      adjacency[ index ] = TRUE
+      makesearchNode( lll=lll, adjacency=adjacency, uncertain=uncertain )
+    } )
+  )
+}
+
+#' Get children in the search graph
+#' 
+#' @param lll the LocalLogLikelihoods object
+#' @param search.node the search node whose children we're generating
+#' @param prioritize how to pick neighbors (by upperbound (default), or difference between upper and lower bound (variance) in the bound vector of the current node.)
+#' @return a list of search nodes (the children)
+#' @export
+getChildNodes = function ( lll, search.node, prioritize = "upperbound" ) {
   
   n = howManyActors( lll )
   
@@ -92,8 +118,12 @@ getChildNodes = function ( lll, search.node ) {
   # Figure out which node to assign
   edge.col =
     if ( any( candidates <- apply( uncertain[ , -( 1:n ) ], 2, any ) ) ){
-      variances = search.node$bound.vector["upper", candidates] - search.node$bound.vector["lower", candidates]
-      names( which.max( variances ) )
+      priorities =
+        if ( prioritize == "variance" )
+          search.node$bound.vector["upper", candidates] - search.node$bound.vector["lower", candidates]
+        else # upperbound
+          search.node$bound.vector["upper", candidates]
+      names( which.max( priorities ) )
     } else {
       names( which.max( apply( uncertain, 2, any ) ) )
     }

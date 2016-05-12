@@ -4,12 +4,14 @@
 \alias{getChildNodes}
 \title{Get children in the search graph}
 \usage{
-getChildNodes(lll, search.node)
+getChildNodes(lll, search.node, prioritize = "upperbound")
 }
 \arguments{
 \item{lll}{the LocalLogLikelihoods object}
 
 \item{search.node}{the search node whose children we're generating}
+
+\item{prioritize}{how to pick neighbors (by upperbound (default), or difference between upper and lower bound (variance) in the bound vector of the current node.)}
 }
 \value{
 a list of search nodes (the children)
