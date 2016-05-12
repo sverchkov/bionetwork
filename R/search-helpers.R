@@ -97,13 +97,17 @@ getChildNodes = function ( lll, search.node ) {
     } else {
       names( which.max( apply( uncertain, 2, any ) ) )
     }
-  edge.row = which.max( uncertain[ , edge.col ] )
   
-  uncertain[ edge.row, edge.col ] = FALSE
-  
-  for ( edge in c( FALSE, TRUE ) ){
-    adjacency[ edge.row, edge.col ] = edge
-    result = c( result, list( makeSearchNode( lll=lll, adjacency=adjacency, uncertain=uncertain ) ) )
+  if ( length( edge.col ) >= 1 ) {
+    
+    edge.row = which.max( uncertain[ , edge.col ] )
+    
+    uncertain[ edge.row, edge.col ] = FALSE
+    
+    for ( edge in c( FALSE, TRUE ) ){
+      adjacency[ edge.row, edge.col ] = edge
+      result = c( result, list( makeSearchNode( lll=lll, adjacency=adjacency, uncertain=uncertain ) ) )
+    }
   }
   
   result
