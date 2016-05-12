@@ -4,7 +4,7 @@
 \alias{makeSearchNode}
 \title{Makes a search node}
 \usage{
-makeSearchNode(lll, adjacency, uncertain)
+makeSearchNode(lll, adjacency, uncertain, auto.sparse = TRUE)
 }
 \arguments{
 \item{lll}{LocalLogLikelihoods object}
@@ -12,6 +12,8 @@ makeSearchNode(lll, adjacency, uncertain)
 \item{adjacency}{adjacency matrix}
 
 \item{uncertain}{uncertainty matrix}
+
+\item{auto.sparse}{whether to try and use sparse matrices}
 }
 \value{
 a search node (list made up of adjacency, uncertainty, and per-reporter

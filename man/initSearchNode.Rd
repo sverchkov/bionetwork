@@ -4,7 +4,7 @@
 \alias{initSearchNode}
 \title{Create the initial search node}
 \usage{
-initSearchNode(lll, reporters = getReporters(lll))
+initSearchNode(lll, reporters = getReporters(lll), use.sparse = TRUE)
 }
 \arguments{
 \item{lll}{LocalLogLikelihoods object}

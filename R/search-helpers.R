@@ -8,7 +8,7 @@
 #' @return a search node (specified by adjacency and uncertainty matrices and a vector
 #' of reporter contributions to the score)
 #' @export
-initSearchNode = function ( lll, reporters = getReporters( lll ) ){
+initSearchNode = function ( lll, reporters = getReporters( lll ), use.sparse = TRUE ){
   n = howManyActors( lll ) # Number of actors
   nR = length( reporters ) # Number of reporters
   
@@ -26,19 +26,31 @@ initSearchNode = function ( lll, reporters = getReporters( lll ) ){
 #' @param lll LocalLogLikelihoods object
 #' @param adjacency adjacency matrix
 #' @param uncertain uncertainty matrix
+#' @param auto.sparse whether to try and use sparse matrices
 #' @return a search node (list made up of adjacency, uncertainty, and per-reporter
 #' score vector)
 #' @export
-makeSearchNode = function ( lll, adjacency, uncertain ){
+makeSearchNode = function ( lll, adjacency, uncertain, auto.sparse = TRUE ){
   # Build uncertainty-based ancestry matrices
   possible.ancestors = adjacencyToAncestry( adjacency | uncertain )
   possible.nonancestors = !adjacencyToAncestry( adjacency & !uncertain )
   
-  list(
-    adjacency = adjacency,
-    uncertain = uncertain,
-    bound.vector = getScoreBounds( lll, possible.ancestors, possible.nonancestors )
-  )
+  bounds = getScoreBounds( lll, possible.ancestors, possible.nonancestors )
+  
+  if ( auto.sparse ){
+    sparse.adj = ( sum( adjacency )*10 > length( adjacency ) )
+    sparse.unc = ( sum( uncertain )*10 > length( uncertain ) )
+    list(
+      adjacency = Matrix::Matrix( adjacency, sparse = sparse.adj ),
+      uncertain = Matrix::Matrix( uncertain, sparse = sparse.unc ),
+      bound.vector = bounds
+    )
+  } else
+    list(
+      adjacency = adjacency,
+      uncertain = uncertain,
+      bound.vector = bounds
+    )
 }
 
 #' Goal node check
