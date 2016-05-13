@@ -38,8 +38,8 @@ makeSearchNode = function ( lll, adjacency, uncertain, auto.sparse = TRUE ){
   bounds = getScoreBounds( lll, possible.ancestors, possible.nonancestors )
   
   if ( auto.sparse ){
-    sparse.adj = ( sum( adjacency )*10 > length( adjacency ) )
-    sparse.unc = ( sum( uncertain )*10 > length( uncertain ) )
+    sparse.adj = ( sum( adjacency )*10 < length( adjacency ) )
+    sparse.unc = ( sum( uncertain )*10 < length( uncertain ) )
     list(
       adjacency = Matrix::Matrix( adjacency, sparse = sparse.adj ),
       uncertain = Matrix::Matrix( uncertain, sparse = sparse.unc ),
