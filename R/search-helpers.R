@@ -94,7 +94,7 @@ getChildNodesWide = function ( lll, search.node ) {
       uncertain[ index ] = FALSE
       adjacency = search.node$adjacency
       adjacency[ index ] = TRUE
-      makesearchNode( lll=lll, adjacency=adjacency, uncertain=uncertain )
+      makeSearchNode( lll=lll, adjacency=adjacency, uncertain=uncertain )
     } )
   )
 }
