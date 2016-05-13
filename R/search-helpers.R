@@ -82,14 +82,14 @@ getCost = function ( search.node ) {
 #' @export
 getChildNodesWide = function ( lll, search.node ) {
   c(
-    lapply( which( search.node$uncertain ), function( index ) {
+    lapply( Matrix::which( search.node$uncertain ), function( index ) {
       uncertain = search.node$uncertain
       uncertain[ index ] = FALSE
       adjacency = search.node$adjacency
       adjacency[ index ] = FALSE
       makeSearchNode( lll=lll, adjacency=adjacency, uncertain=uncertain )
     } ),
-    lapply( which( search.node$uncertain ), function( index ) {
+    lapply( Matrix::which( search.node$uncertain ), function( index ) {
       uncertain = search.node$uncertain
       uncertain[ index ] = FALSE
       adjacency = search.node$adjacency
