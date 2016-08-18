@@ -168,3 +168,23 @@ getChildrenInToggleSearch = function ( adjacency ){
     xor( adjacency, logicVector( n, x ) )
   } )
 }
+
+#' Children function for simple, edge-additive search, over transitively closed adjacency matrices
+#' 
+#' @param adj current adjacency matrix
+#' @return (possibly incomplete) list of transitively closed adjacency matrices that can be reached by adding nodes to this one
+getBiggerTransitiveGraphs = function ( adj ) {
+  
+  result = list()
+  
+  # Try to add each missing edge
+  for ( edge in which( !adj ) ) {
+    child = adj
+    child[ edge ] = TRUE
+    # Check if transitively closed
+    if ( transitivelyClosed( child ) ) result = c( result, list( child ) )
+    else result = c( result, getBiggerTransitiveGraphs( child ) )
+  }
+  
+  return ( result )
+}

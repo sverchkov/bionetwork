@@ -58,3 +58,39 @@ ancestryToAdjacency = function ( ancestry ){
   
   return ( adjacency )
 }
+
+#' Transitively closed adjacency matrix
+#' 
+#' Returns true if adjacency matrix is transitively closed, note that self-edges count.
+#' @param adj The adjacency matrix
+#' @return True iff the adjacency matrix is transitively closed
+transitivelyClosed = function ( adj ){
+  all( adj == ( ( adj %*% adj ) > 0 ) )
+}
+
+#' Enumerate all matrices that have more edges
+#'
+#' @param adj The adjacency matrix
+#' @param firstEdge First edge to consider adding ( default = 1 )
+#' @return The list of matrices obtained from adding edges to this one ( including input matrix )
+allFullerMatrices = function ( adj, firstEdge = 1 ){
+
+  edges = which( !adj )
+  edge = min( edges[ edges >= firstEdge ] )
+  if ( is.finite( edge ) ){
+    adj2 = adj
+    adj2[ edge ] = TRUE
+    return ( c( allFullerMatrices( adj, edge+1 ), allFullerMatrices( adj2, edge+1 ) ) )
+  } else return ( list( adj ) )
+}
+
+#' Enumerate all transitively closed n x n matrices
+#' 
+#' @param n The number of rows and columns
+#' @param fullDiagonal Whether to enforce 1's on the diagonal (defult = TRUE)
+#' @return All transitively closed n x n matrices
+enumerateTransitivelyClosedMatrices = function ( n, fullDiagonal = TRUE ) {
+  M = if ( fullDiagonal ) diag( n ) > 0 else matrix( TRUE, n, n )
+  matrices = allFullerMatrices( M )
+  return ( matrices[ sapply( matrices, transitivelyClosed ) ] )
+}
