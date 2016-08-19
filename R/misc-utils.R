@@ -1,6 +1,13 @@
 # Miscellaneaous utilities
 
 #' Make a contrast matrix
+#' 
+#' @param single.genes List of single genes
+#' @param double.specs is a list where each element has a list with a first element identifying the name of a double KO,
+#'        and the second being a pair of the corresponding single KOs. E.g. "hog1msn2", ["hog1", "msn2"]
+#' @param wt.str is the string used for the wild-type (e.g. "WT")
+#' @param the.colnames is a list of the column names actually present the fit for which we're making this matrix
+#' @export
 mkContrastMatrix = function( single.genes, double.specs, wt.str, the.colnames ){
   
   n.1le = length(single.genes)
