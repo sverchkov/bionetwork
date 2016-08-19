@@ -8,6 +8,7 @@
 #' @param vectorSA The length-A vector of single-action log-odds that action induced a change in the effect
 #' @param matrixDA The AxA matrix that the double-action i,j is differentiall expressed from action i alone
 #' @return The score
+#' @export
 score4effect = function ( adj, theta, vectorSA, matrixDA ){
   # Predicted affecting actions vector:
   predictedSA = adj %*% theta > 0
@@ -26,6 +27,7 @@ score4effect = function ( adj, theta, vectorSA, matrixDA ){
 #' @param matrixDA The AxA matrix that the double-action i,j is differentiall expressed from action i alone
 #' @param regularization A regularization constant that penalizes nonzero theta-elements. Default is 0 (no regularization)
 #' @return The best theta-assignment and score, in a named list
+#' @export
 scoreBestTheta = function ( adj, vectorSA, matrixDA, regularization = 0 ){
   best.score = -Inf
   best.theta = NULL

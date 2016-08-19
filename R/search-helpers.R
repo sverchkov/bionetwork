@@ -173,6 +173,7 @@ getChildrenInToggleSearch = function ( adjacency ){
 #' 
 #' @param adj current adjacency matrix
 #' @return (possibly incomplete) list of transitively closed adjacency matrices that can be reached by adding nodes to this one
+#' @export
 getBiggerTransitiveGraphs = function ( adj ) {
   
   result = list()
