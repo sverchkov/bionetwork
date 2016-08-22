@@ -1,3 +1,7 @@
+# Don't track roxygen2 -generated things
+NAMESPACE
+man
+
 # History files
 .Rhistory
 .Rapp.history
