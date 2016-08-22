@@ -74,6 +74,24 @@ getCost = function ( search.node ) {
      "lower" = -sum( search.node$bound.vector["upper", ] ) )
 }
 
+#' Compute the cost bounds from the node
+#' 
+#' To be used with node objects that don't pre-compute the cost
+#' We negate the scores because the search algorithm uses costs while we score based on likelihoods
+#' @param lll The LocalLogLikelihoods object
+#' @param search.node The search node object
+#' @return Cost bounds
+#' @export
+computeCost = function ( lll, search.node ) {
+  possible.ancestors = adjacencyToAncestry( search.node$adjacency | search.node$uncertain )
+  possible.nonancestors = !adjacencyToAncestry( search.node$adjacency & !search.node$uncertain )
+  
+  bounds = getScoreBounds( lll, possible.ancestors, possible.nonancestors )
+  
+  c( "upper" = -sum( bounds["lower", ] ),
+     "lower" = -sum( bounds["upper", ] ) )
+}
+
 #' Get children in the search graph (wide version)
 #' 
 #' @param lll the LocalLogLikelihoods object
