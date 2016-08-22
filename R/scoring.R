@@ -47,3 +47,42 @@ scoreBestTheta = function ( adj, vectorSA, matrixDA, regularization = 0 ){
   
   return ( list( score = best.score, theta = best.theta ) )
 }
+
+#' Get the MAP of thetas for a specific graph
+#' 
+#' @param adj the AxA adjacency matrix. Should have 1s on the diagonal
+#' @param matrixSA The AxE matrix of log odds that action a induced a change in the effect e
+#' @param tensorDA An AxAxE array where element [a,b,e] is the log-odds that effect e in DKO ab is DE W.R.T. SKO a
+#' @param regularization A regularization constant between 0 and 1 that penalizes nonzero theta-elements
+#' @return The best theta-assignment for each effect and the associated scores, in a named list
+#' @export
+scoreMAPTheta = function ( adj, matrixSA, tensorDA, regularization = 0 ){
+  
+  actions = rownames( matrixSA )
+  effects = colnames( matrixSA )
+  
+  n.actions = length( actions )
+  n.effects = length( effects )
+  
+  best.scores = rep( -Inf, n.effects )
+  best.theta = matrix( FALSE, n.actions, n.effects, dimnames = list( actions, effects ) )
+  
+  tensor = tensorDA
+  for ( action in actions )
+    tensor[ action, action, ] = matrixSA[ action, ]
+  
+  if ( n.actions >= 31 ) stop( "Sorry, this isn't written to hangle more than 30 actions :(" )
+  
+  for ( i in 1:(2^n.actions) ) {
+    theta = as.logical( intToBits( i )[ 1:n.actions ] )
+    scores =
+      ( 1 - regularization ) * apply( tensor, 3, function ( m ) score4effect( adj, theta, diag( m ), m ) ) -
+      regularization * sum( theta )
+    
+    better = ( scores > best.scores )
+    best.theta[ , better ] = theta
+    best.scores[ better ] = scores[ better ]
+  }
+  
+  return ( list( score = best.scores, theta = best.theta ) )
+}
