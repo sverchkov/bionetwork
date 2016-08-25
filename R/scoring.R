@@ -9,12 +9,12 @@
 #' @param matrixDA The AxA matrix that the double-action i,j is differentiall expressed from action i alone
 #' @return The score
 #' @export
-score4effect = function ( adj, theta, vectorSA, matrixDA ){
+score4effect = function ( adj, theta, vectorSA, matrixDA, term2function = function ( a, b ) a & b ){
   # Predicted affecting actions vector:
   predictedSA = adj %*% theta > 0
   
   # Predicted affecting
-  term2 = !adj & !sweep( adj, 2, theta, `&` )
+  term2 = term2function( !adj, !sweep( adj, 2, theta, `&` ) )
   predictedDA = sweep( term2, 1, predictedSA, `&` )
   
   return ( sum( predictedSA * vectorSA ) + sum( predictedDA * matrixDA ) )
@@ -56,7 +56,7 @@ scoreBestTheta = function ( adj, vectorSA, matrixDA, regularization = 0 ){
 #' @param regularization A regularization constant between 0 and 1 that penalizes nonzero theta-elements
 #' @return The best theta-assignment for each effect and the associated scores, in a named list
 #' @export
-scoreMAPTheta = function ( adj, matrixSA, tensorDA, regularization = 0 ){
+scoreMAPTheta = function ( adj, matrixSA, tensorDA, regularization = 0, term2function = function( a, b ) a&b ){
   
   actions = rownames( matrixSA )
   effects = colnames( matrixSA )
